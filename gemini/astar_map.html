@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>A* 寻路 (Double精度地形版)</title>
+    <style>
+        body {
+            background-color: #111;
+            color: #eee;
+            font-family: 'Consolas', 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 { margin: 5px; font-size: 1.5rem; }
+        .info { font-size: 0.9rem; color: #aaa; margin-bottom: 10px; text-align: center; }
+        
+        /* 画布容器 */
+        .canvas-container {
+            position: relative;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            border: 2px solid #555;
+        }
+        canvas {
+            display: block;
+            cursor: crosshair;
+            image-rendering: pixelated; /* 保持像素清晰 */
+        }
+
+        /* 底部状态栏 */
+        #status-bar {
+            margin-top: 15px;
+            width: 640px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            background: #222;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #444;
+        }
+        .stat-box { width: 48%; }
+        #hover-info { color: #4ade80; }
+        #path-info { color: #facc15; text-align: right; }
+    </style>
+</head>
+<body>
+
+    <h1>Double精度地形 A* 寻路</h1>
+    <div class="info">
+        地图尺寸: 128x128 | **高度数据: 浮点数 (0.00 - 128.00)**<br>
+        逻辑: 平地消耗=2.0 | 爬坡消耗=高度差 × 5.0
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="mapCanvas"></canvas>
+    </div>
+
+    <div id="status-bar">
+        <div id="hover-info" class="stat-box">鼠标未在地图上</div>
+        <div id="path-info" class="stat-box">等待指令...</div>
+    </div>
+
+<script>
+// --- 1. 柏林噪声 (核心算法 - 保持不变) ---
+const Perlin = {
+    permutation: undefined,
+    init: function() {
+        this.permutation = new Array(512);
+        const p = new Array(256).fill(0).map((_, i) => i);
+        for (let i = 255; i > 0; i--) {
+            const r = Math.floor(Math.random() * (i + 1));
+            [p[i], p[r]] = [p[r], p[i]];
+        }
+        for (let i = 0; i < 512; i++) this.permutation[i] = p[i & 255];
+    },
+    fade: t => t * t * t * (t * (t * 6 - 15) + 10),
+    lerp: (t, a, b) => a + t * (b - a),
+    grad: (hash, x, y, z) => {
+        const h = hash & 15;
+        const u = h < 8 ? x : y, v = h < 4 ? y : h === 12 || h === 14 ? x : z;
+        return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+    },
+    noise: function(x, y, z) {
+        if (!this.permutation) this.init();
+        const X = Math.floor(x) & 255, Y = Math.floor(y) & 255, Z = Math.floor(z) & 255;
+        x -= Math.floor(x); y -= Math.floor(y); z -= Math.floor(z);
+        const u = this.fade(x), v = this.fade(y), w = this.fade(z);
+        const A = this.permutation[X] + Y, AA = this.permutation[A] + Z, AB = this.permutation[A + 1] + Z;
+        const B = this.permutation[X + 1] + Y, BA = this.permutation[B] + Z, BB = this.permutation[B + 1] + Z;
+        return this.lerp(w, this.lerp(v, this.lerp(u, this.grad(this.permutation[AA], x, y, z),
+            this.grad(this.permutation[BA], x - 1, y, z)),
+            this.lerp(u, this.grad(this.permutation[AB], x, y - 1, z),
+            this.grad(this.permutation[BB], x - 1, y - 1, z))),
+            this.lerp(v, this.lerp(u, this.grad(this.permutation[AA + 1], x, y, z - 1),
+            this.grad(this.permutation[BA + 1], x - 1, y, z - 1)),
+            this.lerp(u, this.grad(this.permutation[AB + 1], x, y - 1, z - 1),
+            this.grad(this.permutation[BB + 1], x - 1, y - 1, z - 1))));
+    }
+};
+
+// --- 2. 配置 ---
+const MAP_SIZE = 128;
+const SCALE = 5;       
+const MAX_HEIGHT = 128.0; // 使用浮点数
+const COST_MOVE = 2.0;    // 使用浮点数
+const COST_CLIMB_FACTOR = 5.0; // 使用浮点数
+
+const canvas = document.getElementById('mapCanvas');
+const ctx = canvas.getContext('2d');
+const hoverInfo = document.getElementById('hover-info');
+const pathInfo = document.getElementById('path-info');
+
+canvas.width = MAP_SIZE * SCALE;
+canvas.height = MAP_SIZE * SCALE;
+
+let heightMap = [];
+let player = { x: 0, y: 0, path: [], isMoving: false, target: null };
+let animationTimeout = null;
+
+// --- 3. 初始化与地图生成 (核心修改点：移除 Math.floor) ---
+function init() {
+    Perlin.init();
+    generateMap();
+    
+    let bestX = 0, bestY = 0, minH = 999;
+    for(let i=0; i<100; i++) {
+        let rx = Math.floor(Math.random() * MAP_SIZE);
+        let ry = Math.floor(Math.random() * MAP_SIZE);
+        // 确保出生点在陆地上
+        if (heightMap[ry][rx] < minH && heightMap[ry][rx] > 30.0) { 
+            minH = heightMap[ry][rx];
+            bestX = rx; bestY = ry;
+        }
+    }
+    player.x = bestX;
+    player.y = bestY;
+    
+    draw();
+}
+
+function generateMap() {
+    heightMap = [];
+    let rawMap = [];
+    let minVal = Infinity, maxVal = -Infinity;
+    
+    const noiseScale = 0.03; 
+    for (let y = 0; y < MAP_SIZE; y++) {
+        let row = [];
+        for (let x = 0; x < MAP_SIZE; x++) {
+            let n1 = Perlin.noise(x * noiseScale, y * noiseScale, 0);
+            let n2 = Perlin.noise(x * noiseScale * 4, y * noiseScale * 4, 1) * 0.2;
+            let val = n1 + n2;
+            
+            if (val < minVal) minVal = val;
+            if (val > maxVal) maxVal = val;
+            row.push(val);
+        }
+        rawMap.push(row);
+    }
+
+    // 归一化到 0.0 - 128.0 (存储双精度浮点数)
+    for (let y = 0; y < MAP_SIZE; y++) {
+        let row = [];
+        for (let x = 0; x < MAP_SIZE; x++) {
+            let normalized = (rawMap[y][x] - minVal) / (maxVal - minVal);
+            // 关键修改：直接存储浮点数
+            let h = normalized * MAX_HEIGHT; 
+            row.push(h);
+        }
+        heightMap.push(row);
+    }
+}
+
+// --- 4. 渲染 (输入 h 现为浮点数，逻辑不变) ---
+function getColor(h) {
+    if (h < 30.0) {
+        let lightness = 20 + (h / 30.0) * 30;
+        return `hsl(210, 80%, ${lightness}%)`; 
+    } else {
+        let landH = h - 30.0;
+        let maxLandH = 128.0 - 30.0;
+        let t = landH / maxLandH; 
+
+        let r, g, b;
+        if (t < 0.5) {
+            let tt = t * 2;
+            r = 34 + (139 - 34) * tt;
+            g = 139 + (69 - 139) * tt;
+            b = 34 + (19 - 34) * tt;
+        } else {
+            let tt = (t - 0.5) * 2;
+            r = 139 + (255 - 139) * tt;
+            g = 69 + (255 - 69) * tt;
+            b = 19 + (255 - 19) * tt;
+        }
+        return `rgb(${Math.floor(r)}, ${Math.floor(g)}, ${Math.floor(b)})`;
+    }
+}
+
+function draw() {
+    for (let y = 0; y < MAP_SIZE; y++) {
+        for (let x = 0; x < MAP_SIZE; x++) {
+            let h = heightMap[y][x];
+            ctx.fillStyle = getColor(h);
+            ctx.fillRect(x * SCALE, y * SCALE, SCALE, SCALE);
+        }
+    }
+
+    if (player.path.length > 0) {
+        ctx.strokeStyle = "#e74c3c"; 
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(player.x * SCALE + SCALE/2, player.y * SCALE + SCALE/2);
+        for(let p of player.path) {
+            ctx.lineTo(p.x * SCALE + SCALE/2, p.y * SCALE + SCALE/2);
+        }
+        ctx.stroke();
+    }
+
+    if (player.target) {
+        let tx = player.target.x * SCALE + SCALE/2;
+        let ty = player.target.y * SCALE + SCALE/2;
+        ctx.strokeStyle = "#fff"; 
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(tx - 6, ty - 6); ctx.lineTo(tx + 6, ty + 6);
+        ctx.moveTo(tx + 6, ty - 6); ctx.lineTo(tx - 6, ty + 6);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(tx, ty, 10, 0, Math.PI*2);
+        ctx.stroke();
+    }
+
+    let px = player.x * SCALE + SCALE/2;
+    let py = player.y * SCALE + SCALE/2;
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.arc(px, py, SCALE, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = "#000";
+    ctx.stroke();
+}
+
+
+// --- 5. A* 核心 (核心修改点：所有 G/H/Cost 均为浮点数) ---
+class Node {
+    constructor(x, y, h) {
+        this.x = x; this.y = y; this.h = h; // h 是浮点数
+        this.f = 0.0; this.g = 0.0; this.hScore = 0.0; // G/F/H 均为浮点数
+        this.parent = null;
+    }
+}
+
+function findPath(startX, startY, endX, endY) {
+    let nodeCache = new Map();
+    const getNode = (x, y) => {
+        let key = `${x},${y}`;
+        if (!nodeCache.has(key)) nodeCache.set(key, new Node(x, y, heightMap[y][x]));
+        return nodeCache.get(key);
+    };
+
+    let startNode = getNode(startX, startY);
+    let endNode = getNode(endX, endY);
+    let openSet = [startNode];
+    let closedSet = new Set();
+    
+    let loops = 0;
+    const MAX_LOOPS = 15000; 
+
+    while (openSet.length > 0) {
+        if (loops++ > MAX_LOOPS) return null;
+
+        let winner = 0;
+        for (let i = 1; i < openSet.length; i++) {
+            if (openSet[i].f < openSet[winner].f) winner = i;
+        }
+        let current = openSet[winner];
+
+        if (current.x === endNode.x && current.y === endNode.y) {
+            let path = [];
+            let temp = current;
+            while (temp.parent) {
+                path.push({x: temp.x, y: temp.y});
+                temp = temp.parent;
+            }
+            return path.reverse();
+        }
+
+        openSet.splice(winner, 1);
+        closedSet.add(`${current.x},${current.y}`);
+
+        let neighbors = [
+            {x: current.x + 1, y: current.y},
+            {x: current.x - 1, y: current.y},
+            {x: current.x, y: current.y + 1},
+            {x: current.x, y: current.y - 1}
+        ];
+
+        for (let nb of neighbors) {
+            if (nb.x < 0 || nb.x >= MAP_SIZE || nb.y < 0 || nb.y >= MAP_SIZE) continue;
+            if (closedSet.has(`${nb.x},${nb.y}`)) continue;
+
+            let neighborNode = getNode(nb.x, nb.y);
+
+            // --- 核心 Cost 计算 ---
+            let baseCost = COST_MOVE; 
+            let hDiff = neighborNode.h - current.h; // 浮点数高度差
+            
+            let climbCost = 0.0;
+            if (hDiff > 0.0) { // 只有正向高度差产生惩罚
+                climbCost = hDiff * COST_CLIMB_FACTOR; // 浮点数惩罚
+            }
+            
+            let tempG = current.g + baseCost + climbCost; // G值现在是浮点数
+
+            let newPath = false;
+            if (openSet.includes(neighborNode)) {
+                if (tempG < neighborNode.g) {
+                    neighborNode.g = tempG;
+                    newPath = true;
+                }
+            } else {
+                neighborNode.g = tempG;
+                newPath = true;
+                openSet.push(neighborNode);
+            }
+
+            if (newPath) {
+                let dist = Math.abs(neighborNode.x - endNode.x) + Math.abs(neighborNode.y - endNode.y);
+                // 启发式：曼哈顿距离 + 高度差预估（使用浮点数）
+                let hDist = Math.abs(neighborNode.h - endNode.h) * 2.0; 
+                neighborNode.hScore = dist + hDist;
+                neighborNode.f = neighborNode.g + neighborNode.hScore;
+                neighborNode.parent = current;
+            }
+        }
+    }
+    return null;
+}
+
+// --- 6. 交互与循环 (微调 UI 显示精度) ---
+
+function moveTick() {
+    if (player.path.length > 0) {
+        let next = player.path.shift();
+        player.x = next.x;
+        player.y = next.y;
+        draw();
+        animationTimeout = setTimeout(moveTick, 30);
+    } else {
+        player.isMoving = false;
+        player.target = null;
+        pathInfo.innerText = "到达目的地";
+        draw();
+    }
+}
+
+canvas.addEventListener('mousedown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const clickX = Math.floor((e.clientX - rect.left) / SCALE);
+    const clickY = Math.floor((e.clientY - rect.top) / SCALE);
+
+    if(clickX < 0 || clickX >= MAP_SIZE || clickY < 0 || clickY >= MAP_SIZE) return;
+
+    pathInfo.innerText = "计算中...";
+    pathInfo.style.color = "#facc15";
+
+    setTimeout(() => {
+        const path = findPath(player.x, player.y, clickX, clickY);
+
+        if (path && path.length > 0) {
+            player.path = path;
+            player.target = {x: clickX, y: clickY};
+            
+            let totalSteps = path.length;
+            pathInfo.innerText = `路径更新: ${totalSteps} 步`;
+            pathInfo.style.color = "#fff";
+
+            if (!player.isMoving) {
+                player.isMoving = true;
+                moveTick();
+            }
+            draw();
+        } else {
+            pathInfo.innerText = "无法到达 (山太高或在水里)";
+            pathInfo.style.color = "#f00";
+        }
+    }, 10);
+});
+
+// 鼠标移动显示高度信息 (核心修改点：显示两位小数)
+canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = Math.floor((e.clientX - rect.left) / SCALE);
+    const my = Math.floor((e.clientY - rect.top) / SCALE);
+
+    if (mx >= 0 && mx < MAP_SIZE && my >= 0 && my < MAP_SIZE) {
+        let h = heightMap[my][mx];
+        // 关键修改：toFixed(2) 显示两位小数
+        hoverInfo.innerText = `坐标 [${mx}, ${my}] | 高度: ${h.toFixed(2)} / 128.00`;
+        
+        if (h < 30.0) hoverInfo.style.color = "#6ab0ff"; 
+        else if (h > 100.0) hoverInfo.style.color = "#fff"; 
+        else hoverInfo.style.color = "#4ade80"; 
+    }
+});
+
+init();
+
+</script>
+</body>
+</html>
+

@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>坦克大战 FC 增强版</title>
+    <style>
+        body {
+            background-color: #333;
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Press Start 2P', monospace, sans-serif; /* 假装是像素字体 */
+            user-select: none;
+        }
+        canvas {
+            background-color: #000;
+            border: 8px solid #777;
+            image-rendering: pixelated; /* 像素化渲染 */
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        }
+        .hud {
+            margin-top: 10px;
+            display: flex;
+            gap: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .controls {
+            margin-top: 15px;
+            font-size: 12px;
+            color: #aaa;
+        }
+        .label { color: #e74c3c; }
+        .val { color: #fff; }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas" width="520" height="520"></canvas>
+    
+    <div class="hud">
+        <div><span class="label">Enemy:</span> <span class="val" id="uiEnemy">20</span></div>
+        <div><span class="label">Score:</span> <span class="val" id="uiScore">0</span></div>
+        <div><span class="label">Level:</span> <span class="val" id="uiLevel">1</span></div>
+    </div>
+
+    <div class="controls">
+        WASD移动 | SPACE射击 | P暂停
+    </div>
+
+<script>
+/**
+ * 坦克大战增强版 - 单文件 HTML5 实现
+ * 包含：像素绘图引擎、粒子爆炸、道具系统、AI行为
+ */
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// --- 游戏配置 ---
+const CELL_SIZE = 40; // 格子大小
+const GRID_SIZE = 13; // 地图 13x13
+const GAME_WIDTH = CELL_SIZE * GRID_SIZE;
+const GAME_HEIGHT = CELL_SIZE * GRID_SIZE;
+
+const DIR = { UP: 0, RIGHT: 1, DOWN: 2, LEFT: 3 };
+const TYPES = { BASIC: 0, FAST: 1, ARMOR: 2 }; // 敌人类型
+
+// --- 资源绘制器 (用代码画像素图) ---
+const Drawer = {
+    rect: (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); },
+    
+    // 画坦克 (画出履带、车身、炮管)
+    tank: (x, y, dir, color, frame) => {
+        ctx.save();
+        ctx.translate(x + 16, y + 16); // 移动中心点 (坦克约32x32)
+        // 旋转
+        if (dir === DIR.RIGHT) ctx.rotate(Math.PI / 2);
+        if (dir === DIR.DOWN) ctx.rotate(Math.PI);
+        if (dir === DIR.LEFT) ctx.rotate(-Math.PI / 2);
+
+        // 履带 (带动画)
+        ctx.fillStyle = "#000"; // 履带底色
+        ctx.fillRect(-15, -15, 30, 30);
+        
+        ctx.fillStyle = color; // 主色
+        // 左履带
+        ctx.fillRect(-15, -14, 8, 28);
+        // 右履带
+        ctx.fillRect(7, -14, 8, 28);
+        
+        // 履带细节 (轮子滚动效果)
+        ctx.fillStyle = "#000";
+        let offset = frame ? 2 : 0;
+        for(let i=0; i<6; i++) {
+            ctx.fillRect(-15, -14 + i*4 + offset, 8, 2);
+            ctx.fillRect(7, -14 + i*4 + offset, 8, 2);
+        }
+
+        // 车身
+        ctx.fillStyle = color;
+        ctx.fillRect(-8, -10, 16, 22); // 主体
+        
+        // 盖子/装饰
+        ctx.fillStyle = adjustColor(color, -40); // 深色阴影
+        ctx.fillRect(-5, -6, 10, 10);
+
+        // 炮管
+        ctx.fillStyle = "#ccc"; // 银色炮管
+        ctx.fillRect(-2, -20, 4, 16);
+        ctx.fillStyle = "#fff"; // 炮口高光
+        ctx.fillRect(-2, -20, 4, 4);
+
+        ctx.restore();
+    },
+
+    // 画砖墙 (带砖缝)
+    brick: (x, y) => {
+        ctx.fillStyle = "#a52a2a"; // 砖红
+        ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+        ctx.fillStyle = "#dcdcdc"; // 水泥缝
+        ctx.fillRect(x, y + 10, CELL_SIZE, 2);
+        ctx.fillRect(x, y + 20, CELL_SIZE, 2);
+        ctx.fillRect(x, y + 30, CELL_SIZE, 2);
+        // 竖缝
+        ctx.fillRect(x + 20, y, 2, 10);
+        ctx.fillRect(x + 10, y + 10, 2, 10);
+        ctx.fillRect(x + 20, y + 20, 2, 10);
+        ctx.fillRect(x + 10, y + 30, 2, 10);
+    },
+
+    // 画铁墙
+    steel: (x, y) => {
+        ctx.fillStyle = "#bdc3c7"; // 银灰
+        ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(x + 8, y + 8, CELL_SIZE - 16, CELL_SIZE - 16); // 内部高光
+        ctx.fillStyle = "#bdc3c7";
+        ctx.fillRect(x + 16, y + 16, CELL_SIZE - 32, CELL_SIZE - 32); // 中心
+    },
+
+    // 画老鹰
+    base: (x, y, dead) => {
+        if (dead) {
+            ctx.fillStyle = "#333";
+            ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+            ctx.fillStyle = "red"; // 废墟
+            ctx.fillText("☠️", x+5, y+30);
+        } else {
+            ctx.fillStyle = "#000";
+            ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+            // 简单的鹰徽章
+            ctx.fillStyle = "#e67e22"; // 金色
+            ctx.beginPath();
+            ctx.moveTo(x + 20, y + 5);
+            ctx.lineTo(x + 35, y + 35);
+            ctx.lineTo(x + 5, y + 35);
+            ctx.fill();
+            ctx.fillStyle = "#ecf0f1"; // 翅膀白
+            ctx.fillRect(x + 5, y + 15, 30, 5);
+        }
+    },
+
+    // 画道具
+    item: (x, y, type) => {
+        let pulse = Math.sin(Date.now() / 100) * 5; // 闪烁效果
+        ctx.fillStyle = `rgb(${255}, ${255-pulse*10}, ${255-pulse*10})`;
+        ctx.fillRect(x, y, 32, 32);
+        ctx.fillStyle = "#000";
+        ctx.font = "20px bold monospace";
+        ctx.fillText(type === 'star' ? "★" : "💣", x + 5, y + 24);
+        ctx.strokeStyle = "#f00";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, 32, 32);
+    }
+};
+
+// 颜色辅助
+function adjustColor(color, amount) {
+    return color; // 简化版本，实际可做HEX解析变暗
+}
+
+// --- 游戏类 ---
+
+class GameObject {
+    constructor(x, y, w, h) {
+        this.x = x; this.y = y; this.w = w; this.h = h;
+        this.delete = false;
+    }
+    collide(o) {
+        return this.x < o.x + o.w && this.x + this.w > o.x &&
+               this.y < o.y + o.h && this.y + this.h > o.y;
+    }
+}
+
+class Explosion {
+    constructor(x, y) {
+        this.x = x; this.y = y;
+        this.timer = 10; // 持续帧数
+    }
+    update() { this.timer--; }
+    draw() {
+        if (this.timer <= 0) return;
+        ctx.fillStyle = this.timer > 5 ? "#ff0" : "#f00";
+        let r = (10 - this.timer) * 3;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, r, 0, Math.PI*2);
+        ctx.fill();
+        
+        // 爆炸外圈
+        ctx.strokeStyle = "white";
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, r + 5, 0, Math.PI*2);
+        ctx.stroke();
+    }
+}
+
+class Bullet extends GameObject {
+    constructor(x, y, dir, owner, speed = 5) {
+        super(x, y, 6, 6); // 子弹变小点
+        // 修正出生位置到坦克炮口
+        if(dir === DIR.UP) { this.x += 13; this.y -= 5; }
+        if(dir === DIR.DOWN) { this.x += 13; this.y += 32; }
+        if(dir === DIR.LEFT) { this.x -= 5; this.y += 13; }
+        if(dir === DIR.RIGHT) { this.x += 32; this.y += 13; }
+        
+        this.dir = dir;
+        this.owner = owner;
+        this.speed = speed;
+    }
+    update() {
+        if (this.dir === DIR.UP) this.y -= this.speed;
+        if (this.dir === DIR.DOWN) this.y += this.speed;
+        if (this.dir === DIR.LEFT) this.x -= this.speed;
+        if (this.dir === DIR.RIGHT) this.x += this.speed;
+
+        // 边界
+        if (this.x < 0 || this.x > GAME_WIDTH || this.y < 0 || this.y > GAME_HEIGHT) this.delete = true;
+        
+        // 撞墙检测
+        this.checkMapCollision();
+    }
+    checkMapCollision() {
+        let r = Math.floor((this.y + 3) / CELL_SIZE);
+        let c = Math.floor((this.x + 3) / CELL_SIZE);
+        if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE) {
+            let tile = game.map[r][c];
+            if (tile === 1) { // 砖
+                game.map[r][c] = 0; // 毁坏
+                this.delete = true;
+                game.explosions.push(new Explosion(this.x, this.y));
+            } else if (tile === 2) { // 铁
+                this.delete = true;
+                game.explosions.push(new Explosion(this.x, this.y)); // 只出火花
+            } else if (tile === 9) { // 基地
+                game.map[r][c] = 0;
+                this.delete = true;
+                game.endGame(false);
+            }
+        }
+    }
+    draw() {
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(this.x, this.y, this.w, this.h);
+    }
+}
+
+class Tank extends GameObject {
+    constructor(x, y, type) {
+        super(x, y, 32, 32); // 坦克32x32, 格子40x40，留空隙
+        this.type = type; // 'player' or Enemy Type
+        this.dir = DIR.UP;
+        this.speed = 2;
+        this.color = "#fabd2f";
+        this.cooldown = 0;
+        this.frame = 0; // 动画帧
+        this.isMoving = false;
+        
+        // 属性设置
+        if (type === TYPES.FAST) { this.color = "#2ecc71"; this.speed = 3.5; }
+        if (type === TYPES.ARMOR) { this.color = "#e74c3c"; this.speed = 1.5; this.hp = 2; }
+        if (type === TYPES.BASIC) { this.color = "#bdc3c7"; }
+        if (type === 'player') { this.hp = 1; }
+        else { this.hp = type === TYPES.ARMOR ? 2 : 1; }
+        
+        // 掉宝属性
+        this.hasItem = (type !== 'player' && Math.random() < 0.2); // 20%几率红坦克
+    }
+
+    move(dir) {
+        this.dir = dir;
+        this.isMoving = true;
+        let nx = this.x, ny = this.y;
+        if (dir === DIR.UP) ny -= this.speed;
+        if (dir === DIR.DOWN) ny += this.speed;
+        if (dir === DIR.LEFT) nx -= this.speed;
+        if (dir === DIR.RIGHT) nx += this.speed;
+
+        // 碰撞盒缩小一点，防止卡墙
+        if (!this.checkCollision(nx, ny)) {
+            this.x = nx; this.y = ny;
+            if (game.frames % 5 === 0) this.frame = !this.frame;
+        }
+    }
+
+    checkCollision(nx, ny) {
+        // 1. 边界
+        if (nx < 0 || nx + this.w > GAME_WIDTH || ny < 0 || ny + this.h > GAME_HEIGHT) return true;
+        
+        // 2. 地图块
+        let corners = [
+            {r: Math.floor(ny/CELL_SIZE), c: Math.floor(nx/CELL_SIZE)},
+            {r: Math.floor((ny+this.h-1)/CELL_SIZE), c: Math.floor(nx/CELL_SIZE)},
+            {r: Math.floor(ny/CELL_SIZE), c: Math.floor((nx+this.w-1)/CELL_SIZE)},
+            {r: Math.floor((ny+this.h-1)/CELL_SIZE), c: Math.floor((nx+this.w-1)/CELL_SIZE)}
+        ];
+        for(let p of corners) {
+            if (p.r >= 0 && p.r < GRID_SIZE && p.c >=0 && p.c < GRID_SIZE) {
+                if (game.map[p.r][p.c] !== 0) return true;
+            }
+        }
+        
+        // 3. 坦克互斥 (简化)
+        // ...略，为了代码短暂时忽略坦克互相推挤的复杂物理
+        return false;
+    }
+
+    shoot() {
+        if (this.cooldown > 0) return;
+        game.bullets.push(new Bullet(this.x, this.y, this.dir, this.type === 'player' ? 'player' : 'enemy', this.bulletSpeed || 5));
+        this.cooldown = 20;
+    }
+
+    update() {
+        if (this.cooldown > 0) this.cooldown--;
+        
+        // AI 逻辑
+        if (this.type !== 'player') {
+            // 简单的 AI
+            if (Math.random() < 0.02 || !this.isMoving) {
+                // 换方向
+                const dirs = [DIR.UP, DIR.DOWN, DIR.LEFT, DIR.RIGHT];
+                // 稍微智能一点：20%几率朝向玩家
+                if (Math.random() < 0.2 && game.player) {
+                     if (Math.abs(game.player.x - this.x) > Math.abs(game.player.y - this.y)) {
+                         this.dir = game.player.x < this.x ? DIR.LEFT : DIR.RIGHT;
+                     } else {
+                         this.dir = game.player.y < this.y ? DIR.UP : DIR.DOWN;
+                     }
+                } else {
+                    this.dir = dirs[Math.floor(Math.random() * 4)];
+                }
+            }
+            
+            // 尝试移动
+            let oldX = this.x, oldY = this.y;
+            this.move(this.dir);
+            if (this.x === oldX && this.y === oldY) this.isMoving = false; // 撞墙了
+
+            // 射击
+            if (Math.random() < 0.03) this.shoot();
+        }
+    }
+
+    draw() {
+        let drawColor = this.color;
+        // 红坦克闪烁
+        if (this.hasItem) drawColor = (Math.floor(Date.now() / 200) % 2 === 0) ? "#f00" : "#fff";
+        
+        Drawer.tank(this.x, this.y, this.dir, drawColor, this.frame);
+        
+        // 血量显示 (如果是重甲)
+        if (this.hp > 1) {
+            ctx.fillStyle = "yellow";
+            ctx.fillRect(this.x, this.y - 5, this.w * (this.hp/2), 3);
+        }
+    }
+}
+
+class Item extends GameObject {
+    constructor(x, y, type) {
+        super(x, y, 32, 32);
+        this.type = type; // 'star', 'bomb'
+    }
+    draw() { Drawer.item(this.x, this.y, this.type); }
+}
+
+// --- 游戏主控 ---
+
+const game = {
+    canvas: canvas,
+    ctx: ctx,
+    map: [],
+    player: null,
+    enemies: [],
+    bullets: [],
+    items: [],
+    explosions: [],
+    frames: 0,
+    score: 0,
+    level: 1,
+    enemyRemaining: 20,
+    spawnTimer: 0,
+    isOver: false,
+    isPaused: false,
+
+    init() {
+        // 地图数据 (1=砖, 2=铁, 9=基地)
+        const m = [
+            [0,0,0,0,0,0,0,0,0,0,0,0,0],
+            [0,1,0,1,0,1,0,1,0,1,0,1,0],
+            [0,1,0,1,0,1,0,1,0,1,0,1,0],
+            [0,1,0,1,0,1,2,1,0,1,0,1,0],
+            [0,1,0,1,0,0,0,0,0,1,0,1,0],
+            [0,0,0,0,0,2,2,2,0,0,0,0,0], // 中间稍微空旷点
+            [0,1,0,1,0,0,0,0,0,1,0,1,0],
+            [0,1,0,1,0,1,2,1,0,1,0,1,0],
+            [0,0,0,0,0,1,0,1,0,0,0,0,0],
+            [0,1,0,1,0,1,0,1,0,1,0,1,0],
+            [0,1,0,1,0,0,0,0,0,1,0,1,0],
+            [0,1,0,0,0,1,1,1,0,0,0,1,0],
+            [0,0,0,0,0,1,9,1,0,0,0,0,0]
+        ];
+        this.map = JSON.parse(JSON.stringify(m));
+        this.player = new Tank(4 * CELL_SIZE + 4, 12 * CELL_SIZE + 4, 'player');
+        
+        this.enemies = [];
+        this.bullets = [];
+        this.explosions = [];
+        this.items = [];
+        this.enemyRemaining = 20;
+        this.score = 0;
+        this.isOver = false;
+        this.loop();
+    },
+
+    spawnEnemy() {
+        if (this.enemyRemaining <= 0) return;
+        if (this.enemies.length >= 4) return; // 屏幕最多4个
+
+        let spawnX = [0, 6, 12][Math.floor(Math.random()*3)] * CELL_SIZE;
+        
+        // 随机类型
+        let r = Math.random();
+        let type = TYPES.BASIC;
+        if (r > 0.7) type = TYPES.FAST;
+        if (r > 0.9) type = TYPES.ARMOR;
+
+        this.enemies.push(new Tank(spawnX + 4, 4, type));
+        this.enemyRemaining--;
+    },
+
+    update() {
+        if (this.isOver || this.isPaused) return;
+        this.frames++;
+
+        // 生成敌人
+        if (this.frames % 100 === 0) this.spawnEnemy();
+
+        // 玩家
+        if (keys['w']) this.player.move(DIR.UP);
+        else if (keys['s']) this.player.move(DIR.DOWN);
+        else if (keys['a']) this.player.move(DIR.LEFT);
+        else if (keys['d']) this.player.move(DIR.RIGHT);
+        else this.player.isMoving = false;
+        
+        if (keys[' ']) this.player.shoot();
+        this.player.update();
+
+        // 实体更新
+        this.enemies.forEach(e => e.update());
+        this.bullets.forEach(b => b.update());
+        this.explosions.forEach(e => e.update());
+
+        // 碰撞逻辑：子弹击中坦克
+        this.bullets.forEach(b => {
+            if (b.delete) return;
+            
+            // 玩家子弹 -> 敌人
+            if (b.owner === 'player') {
+                this.enemies.forEach(e => {
+                    if (b.collide(e)) {
+                        b.delete = true;
+                        e.hp--;
+                        if (e.hp <= 0) {
+                            e.delete = true;
+                            this.score += 100;
+                            this.explosions.push(new Explosion(e.x + 16, e.y + 16));
+                            // 掉道具
+                            if (e.hasItem) {
+                                this.items.push(new Item(e.x, e.y, Math.random()>0.5 ? 'star' : 'bomb'));
+                            }
+                        } else {
+                            // 击中效果
+                            this.explosions.push(new Explosion(b.x, b.y));
+                        }
+                    }
+                });
+            }
+            // 敌人子弹 -> 玩家
+            else {
+                if (b.collide(this.player)) {
+                    b.delete = true;
+                    this.player.delete = true;
+                    this.endGame(false);
+                }
+            }
+        });
+
+        // 玩家吃道具
+        this.items.forEach(i => {
+            if (this.player.collide(i)) {
+                i.delete = true;
+                if (i.type === 'star') {
+                    this.player.bulletSpeed = 10; // 加速子弹
+                    this.player.cooldown = 0;
+                    this.score += 500;
+                }
+                if (i.type === 'bomb') {
+                    this.enemies.forEach(e => {
+                        e.delete = true;
+                        this.explosions.push(new Explosion(e.x+16, e.y+16));
+                    });
+                    this.score += 500;
+                }
+            }
+        });
+
+        // 清理
+        this.enemies = this.enemies.filter(e => !e.delete);
+        this.bullets = this.bullets.filter(b => !b.delete);
+        this.items = this.items.filter(i => !i.delete);
+        this.explosions = this.explosions.filter(e => e.timer > 0);
+
+        // 胜利检测
+        if (this.enemyRemaining === 0 && this.enemies.length === 0) this.endGame(true);
+
+        // 更新UI
+        document.getElementById('uiEnemy').innerText = this.enemyRemaining + this.enemies.length;
+        document.getElementById('uiScore').innerText = this.score;
+    },
+
+    draw() {
+        // 清空背景
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 画地图
+        for(let r=0; r<GRID_SIZE; r++) {
+            for(let c=0; c<GRID_SIZE; c++) {
+                let t = this.map[r][c];
+                let x = c * CELL_SIZE, y = r * CELL_SIZE;
+                if (t === 1) Drawer.brick(x, y);
+                if (t === 2) Drawer.steel(x, y);
+                if (t === 9) Drawer.base(x, y, this.isOver && !this.win);
+            }
+        }
+
+        // 画道具
+        this.items.forEach(i => i.draw());
+
+        // 画实体
+        if (!this.player.delete) this.player.draw();
+        this.enemies.forEach(e => e.draw());
+        this.bullets.forEach(b => b.draw());
+        this.explosions.forEach(e => e.draw());
+        
+        // 游戏结束覆盖层
+        if (this.isOver) {
+            ctx.fillStyle = "rgba(0,0,0,0.7)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#e74c3c";
+            ctx.font = "40px 'Courier New'";
+            ctx.textAlign = "center";
+            ctx.fillText(this.win ? "VICTORY!" : "GAME OVER", canvas.width/2, canvas.height/2);
+            ctx.font = "20px 'Courier New'";
+            ctx.fillStyle = "#fff";
+            ctx.fillText("Press F5 to Restart", canvas.width/2, canvas.height/2 + 40);
+        }
+    },
+
+    endGame(win) {
+        this.isOver = true;
+        this.win = win;
+    },
+
+    loop() {
+        requestAnimationFrame(() => this.loop());
+        this.update();
+        this.draw();
+    }
+};
+
+// --- 输入控制 ---
+const keys = {};
+window.addEventListener('keydown', e => {
+    keys[e.key.toLowerCase()] = true;
+    keys[e.key] = true; // Space capture
+    if(e.key.toLowerCase() === 'p') game.isPaused = !game.isPaused;
+});
+window.addEventListener('keyup', e => {
+    keys[e.key.toLowerCase()] = false;
+    keys[e.key] = false;
+});
+
+// 启动
+game.init();
+
+</script>
+</body>
+</html>
