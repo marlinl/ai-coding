@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>小学生口算生成器 - 修复版</title>
+    <title>小学生口算生成器</title>
     <style>
         :root {
             --primary-color: #4a90e2;
@@ -81,43 +81,21 @@
             min-height: 297mm;
             background: white;
             margin: 0 auto 30px;
-            padding: 15mm 12mm; /* A4 打印优化内边距 */
+            padding: 15mm 12mm;
             box-sizing: border-box;
             box-shadow: 0 0 15px rgba(0,0,0,0.1);
         }
 
-        .paper-header {
-            text-align: center;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #999;
-            padding-bottom: 5px;
-        }
-
-        .paper-header h2 {
-            font-size: 22px;
-            margin: 0;
-            letter-spacing: 2px;
-        }
-
-        .paper-info {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            font-size: 14px;
-            font-family: "SimSun", "宋体", serif;
-        }
-
         #question-list {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr; /* 强制三列 */
-            gap: 12px 20px; 
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px 15px; 
         }
 
         .question-item {
-            font-size: 16px; /* 字体大小适配长算式 */
-            line-height: 1.6;
+            font-size: 16px; 
             display: flex;
-            align-items: flex-end;
+            align-items: center;
             break-inside: avoid;
         }
 
@@ -127,40 +105,68 @@
             margin-right: 5px;
         }
 
-        .answer-space {
-            flex-grow: 1;
-            border-bottom: 1px solid #000;
-            min-width: 30px;
-        }
-
         /* --- 打印适配 --- */
         @media print {
-            @page { size: A4; margin: 0; }
-            body { background: white; }
-            .control-panel, .screen-title { display: none !important; }
-            .paper-container { width: 100%; margin: 0; box-shadow: none; padding: 10mm 12mm; }
-            #question-list { grid-template-columns: 1fr 1fr 1fr; gap: 10px 15px; }
+            @page { 
+                size: A4; 
+                margin: 10mm; /* 上下左右保留 10mm 边距 */
+            } 
+            body, html { 
+                margin: 0; 
+                padding: 0; 
+                background: white; 
+            }
+            .control-panel, .screen-title { 
+                display: none !important; 
+            }
+            .paper-container { 
+                width: 100%; 
+                margin: 0; 
+                padding: 0; 
+                box-shadow: none; 
+                min-height: auto; 
+                border: none;
+            }
+            #question-list { 
+                grid-template-columns: 1fr 1fr 1fr; 
+                gap: 0 10px; /* 强制取消打印时的上下网格间距 */
+                margin: 0;
+                padding: 0;
+            }
+            .question-item { 
+                /* 核心修复：8.0mm 乘以 33行 = 264mm。绝对安全不会超出一页！ */
+                height: 8.0mm; 
+                line-height: 8.0mm;
+                font-size: 14.5px; 
+                margin: 0;
+                padding: 0;
+            }
         }
     </style>
 </head>
 <body>
 
-    <h1 class="screen-title">小学生口算生成器 (无Bug版)</h1>
+    <h1 class="screen-title">小学生口算生成器 (99题版)</h1>
 
     <div class="control-panel">
         <div class="control-group">
             <label>题目总数:</label>
-            <input type="number" id="totalCount" value="50" min="10" max="100">
+            <input type="number" id="totalCount" value="99" min="10" max="200">
+        </div>
+
+        <div class="control-group" style="border-color: #f39c12; background: #fdfae3;">
+            <label>随机位置填空数量:</label>
+            <input type="number" id="randomBlankCount" value="50" min="0" max="200">
         </div>
 
         <div class="control-group">
-            <label>最大数字上限:</label>
-            <input type="number" id="maxNum" value="20" min="5" max="1000">
+            <label>最大数字:</label>
+            <input type="number" id="maxNum" value="30" min="5" max="100">
         </div>
 
         <div class="control-group" style="border-color: #4a90e2; background: #eaf4ff;">
-            <label>参与运算数字个数:</label>
-            <input type="number" id="termCount" value="3" min="2" max="5" title="选3表示: A+B+C=">
+            <label>参与数字个数:</label>
+            <input type="number" id="termCount" value="3" min="2" max="5">
         </div>
 
         <div class="control-group">
@@ -175,120 +181,111 @@
     </div>
 
     <div class="paper-container">
-        <div class="paper-header">
-            <h2>小学生数学口算练习</h2>
-        </div>
-        <div class="paper-info">
-            <span>姓名：__________</span>
-            <span>日期：__________</span>
-            <span>用时：__________</span>
-            <span>得分：__________</span>
-        </div>
         <div id="question-list"></div>
     </div>
 
     <script>
-        // 获取随机整数 [min, max]
         function getRandomInt(min, max) {
             return Math.floor(Math.random() * (max - min + 1)) + min;
         }
 
-        // 核心生成函数：修复了Infinity Bug
-        function generateSingleQuestion(maxNum, termCount, allowedOps) {
-            let maxRetries = 20; // 增加重试次数
+        function generateSingleQuestion(maxNum, termCount, allowedOps, isRandomBlank) {
+            let maxRetries = 30; 
             
             while (maxRetries > 0) {
                 maxRetries--;
                 
                 try {
-                    // 1. 初始化第一个数字
+                    let nums = [];
+                    let opStrs = [];
+                    
                     let currentVal = getRandomInt(1, maxNum);
-                    let formulaStr = `${currentVal}`;
+                    nums.push(currentVal);
 
-                    // 2. 循环生成后续步骤
                     for (let i = 0; i < termCount - 1; i++) {
-                        // 判断是否是最后一步
                         let isLastStep = (i === termCount - 2);
-                        
-                        // 随机选运算符
                         let op = allowedOps[Math.floor(Math.random() * allowedOps.length)];
                         let nextVal;
 
                         if (op === 'add') {
-                            // 加法：确保和 <= maxNum
                             let limit = maxNum - currentVal;
-                            if (limit < 1) throw "Add limit reached"; 
-                            
+                            if (limit < 1) throw "Add limit"; 
                             nextVal = getRandomInt(1, limit);
                             currentVal += nextVal;
-                            formulaStr += ` + ${nextVal}`;
-
+                            opStrs.push('+');
                         } else if (op === 'sub') {
-                            // 减法逻辑关键修改：
-                            // 如果不是最后一步，结果必须 >= 1 (禁止中间结果为0，防止后续乘除出错)
-                            // 如果是最后一步，结果可以 >= 0
                             let minResult = isLastStep ? 0 : 1;
-                            
-                            // currentVal - nextVal >= minResult  =>  nextVal <= currentVal - minResult
                             let limit = currentVal - minResult;
-                            
-                            if (limit < 1) throw "Sub limit reached (too small)";
-                            
+                            if (limit < 1) throw "Sub limit";
                             nextVal = getRandomInt(1, limit);
                             currentVal -= nextVal;
-                            formulaStr += ` - ${nextVal}`;
-
+                            opStrs.push('-');
                         } else if (op === 'mul') {
-                            // 乘法：确保积 <= maxNum
-                            // 关键修复：如果 currentVal 是 0，maxNum/0 会变成 Infinity
-                            if (currentVal === 0) {
-                                // 如果当前是0，后面乘任何数都是0。为了避免无聊题，直接跳过或重试
-                                throw "Zero multiplication"; 
-                            }
-
+                            if (currentVal === 0) throw "Zero mul"; 
                             let limit = Math.floor(maxNum / currentVal);
-                            if (limit < 2) throw "Mul limit reached"; // 只能乘1或0没意义
-                            
+                            if (limit < 2) throw "Mul limit"; 
                             nextVal = getRandomInt(2, limit);
                             currentVal *= nextVal;
-                            formulaStr += ` × ${nextVal}`;
-
+                            opStrs.push('×');
                         } else if (op === 'div') {
-                            // 除法：必须整除
-                            // 关键修复：如果 currentVal < 2，没法除
-                            if (currentVal < 2) throw "Div limit reached (too small)";
-
-                            // 寻找因子
+                            if (currentVal < 2) throw "Div limit";
                             let factors = [];
                             for(let k=2; k<=currentVal; k++) {
                                 if(currentVal % k === 0) factors.push(k);
                             }
-                            
                             if (factors.length === 0) throw "No factors";
-                            
                             nextVal = factors[getRandomInt(0, factors.length - 1)];
                             currentVal /= nextVal;
-                            formulaStr += ` ÷ ${nextVal}`;
+                            opStrs.push('÷');
+                        }
+                        nums.push(nextVal);
+                    }
+
+                    if (currentVal < 0 || currentVal > maxNum) throw "Out of bounds";
+
+                    // 宽括号
+                    const blankStr = '( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )';
+                    
+                    let blankPos = nums.length; 
+                    
+                    if (isRandomBlank) {
+                        blankPos = getRandomInt(0, nums.length - 1);
+                    }
+
+                    let htmlStr = '';
+                    
+                    for (let i = 0; i < nums.length; i++) {
+                        if (i === blankPos) {
+                            htmlStr += `${blankStr} `;
+                        } else {
+                            htmlStr += `${nums[i]} `;
+                        }
+
+                        if (i < opStrs.length) {
+                            htmlStr += `${opStrs[i]} `;
                         }
                     }
 
-                    // 最终校验
-                    if (currentVal < 0 || currentVal > maxNum) throw "Result out of bounds";
-                    if (formulaStr.includes("Infinity")) throw "Infinity Detected"; // 最终保险
+                    htmlStr += '= ';
+                    
+                    if (blankPos === nums.length) {
+                        htmlStr += blankStr;
+                    } else {
+                        htmlStr += currentVal;
+                    }
 
-                    return `${formulaStr} =`;
+                    return htmlStr;
 
                 } catch (e) {
-                    // console.log("Retry reason:", e);
                     continue; 
                 }
             }
-            // 如果重试多次都失败（极罕见），返回保底题目
-            return `1 + 1 =`;
+            return `1 + 1 = ( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )`;
         }
 
         function generateQuestions() {
-            const total = parseInt(document.getElementById('totalCount').value) || 50;
+            let total = parseInt(document.getElementById('totalCount').value) || 99;
+            let randomBlankCount = parseInt(document.getElementById('randomBlankCount').value) || 0;
             const maxNum = parseInt(document.getElementById('maxNum').value) || 20;
             const termCount = parseInt(document.getElementById('termCount').value) || 2;
             
@@ -296,6 +293,11 @@
             const useSub = document.getElementById('useSub').checked;
             const useMul = document.getElementById('useMul').checked;
             const useDiv = document.getElementById('useDiv').checked;
+
+            if (randomBlankCount > total) {
+                randomBlankCount = total;
+                document.getElementById('randomBlankCount').value = total;
+            }
 
             let ops = [];
             if (useAdd) ops.push('add');
@@ -308,15 +310,21 @@
                 return;
             }
 
+            let randomIndexes = new Set();
+            while(randomIndexes.size < randomBlankCount && randomBlankCount > 0) {
+                randomIndexes.add(getRandomInt(0, total - 1));
+            }
+
             const container = document.getElementById('question-list');
             container.innerHTML = '';
 
             for (let i = 0; i < total; i++) {
-                let q = generateSingleQuestion(maxNum, termCount, ops);
+                let isRandomBlank = randomIndexes.has(i);
+                let qHtml = generateSingleQuestion(maxNum, termCount, ops, isRandomBlank);
                 
                 const div = document.createElement('div');
                 div.className = 'question-item';
-                div.innerHTML = `<span class="formula">${q}</span><span class="answer-space"></span>`;
+                div.innerHTML = `<span class="formula">${qHtml}</span>`;
                 container.appendChild(div);
             }
         }
