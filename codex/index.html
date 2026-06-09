@@ -1,0 +1,1269 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Apple App Icon 套图生成器</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f8fa;
+      --panel: #ffffff;
+      --text: #15171a;
+      --muted: #68707d;
+      --line: #d8dde6;
+      --accent: #0a84ff;
+      --accent-dark: #0067d5;
+      --warn: #b45309;
+      --shadow: 0 18px 55px rgba(19, 31, 54, 0.12);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.95), rgba(247,248,250,0.98)),
+        repeating-linear-gradient(90deg, rgba(10,132,255,0.04) 0 1px, transparent 1px 44px);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", sans-serif;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    .app {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 22px;
+    }
+
+    header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 8px 0 20px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(24px, 3vw, 40px);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .subhead {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+      max-width: 740px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(290px, 360px) minmax(420px, 1fr) minmax(280px, 330px);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(122, 132, 150, 0.22);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .panel h2 {
+      margin: 0;
+      padding: 16px 16px 0;
+      font-size: 15px;
+      letter-spacing: 0;
+    }
+
+    .panel-body {
+      padding: 16px;
+    }
+
+    .upload {
+      display: grid;
+      place-items: center;
+      min-height: 150px;
+      padding: 18px;
+      border: 1px dashed #9aa6b8;
+      border-radius: var(--radius);
+      background: #fbfcfe;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 160ms ease, background 160ms ease;
+    }
+
+    .upload:hover,
+    .upload.dragging {
+      border-color: var(--accent);
+      background: #f0f7ff;
+    }
+
+    .upload strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 15px;
+    }
+
+    .upload span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    #fileInput {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .control {
+      margin-top: 16px;
+    }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      color: #28313d;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .control-row output {
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      font-weight: 560;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    input[type="color"] {
+      width: 42px;
+      height: 30px;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: transparent;
+    }
+
+    .switch-row,
+    .color-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 14px;
+      color: #28313d;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .switch-row input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+    }
+
+    .actions {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .platform-tabs {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .platform-tab {
+      min-height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+      color: #344054;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .platform-tab.active {
+      border-color: var(--accent);
+      background: #eaf4ff;
+      color: #005eb8;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      padding: 8px 12px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      background: var(--accent);
+      color: white;
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+    }
+
+    .button:hover {
+      background: var(--accent-dark);
+    }
+
+    .button:active {
+      transform: translateY(1px);
+    }
+
+    .button.secondary {
+      background: #fff;
+      color: #1c2633;
+      border-color: var(--line);
+    }
+
+    .button.secondary:hover {
+      background: #f4f6f9;
+    }
+
+    .button:disabled {
+      background: #d7dde6;
+      color: #7c8797;
+      cursor: not-allowed;
+      transform: none;
+      border-color: transparent;
+    }
+
+    .stage-panel {
+      padding: 16px;
+    }
+
+    .stage-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .stage-shell {
+      display: grid;
+      place-items: center;
+      min-height: min(74vh, 820px);
+      background:
+        linear-gradient(45deg, #e9edf3 25%, transparent 25%),
+        linear-gradient(-45deg, #e9edf3 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #e9edf3 75%),
+        linear-gradient(-45deg, transparent 75%, #e9edf3 75%);
+      background-size: 26px 26px;
+      background-position: 0 0, 0 13px, 13px -13px, -13px 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    canvas {
+      display: block;
+      width: min(100%, 74vh);
+      max-width: 820px;
+      aspect-ratio: 1;
+      border-radius: 22.37%;
+      box-shadow: 0 12px 44px rgba(17, 24, 39, 0.23);
+      background: white;
+      cursor: grab;
+    }
+
+    canvas:active {
+      cursor: grabbing;
+    }
+
+    .empty-state {
+      position: absolute;
+      max-width: 280px;
+      color: #5d6673;
+      text-align: center;
+      font-size: 14px;
+      line-height: 1.6;
+      pointer-events: none;
+    }
+
+    .stage-wrap {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: 100%;
+    }
+
+    .spec-list,
+    .size-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .spec-list li {
+      display: grid;
+      grid-template-columns: 92px 1fr;
+      gap: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eef1f5;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .spec-list li:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .spec-list b {
+      color: #1f2937;
+    }
+
+    .spec-list span {
+      color: var(--muted);
+    }
+
+    .size-list {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .size-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      padding: 8px;
+      border: 1px solid #edf0f5;
+      border-radius: 7px;
+      background: #fbfcfe;
+      font-size: 12px;
+      color: #344054;
+    }
+
+    .size-dot {
+      flex: 0 0 18px;
+      width: 18px;
+      height: 18px;
+      border-radius: 5px;
+      background: linear-gradient(135deg, #0a84ff, #34c759);
+    }
+
+    .size-pill span {
+      overflow-wrap: anywhere;
+    }
+
+    .note {
+      margin-top: 14px;
+      padding: 10px 12px;
+      border-left: 3px solid var(--accent);
+      background: #f2f8ff;
+      color: #3d4b5c;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .warning {
+      border-left-color: var(--warn);
+      background: #fff8ed;
+    }
+
+    .status {
+      min-height: 18px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 1120px) {
+      .layout {
+        grid-template-columns: 330px minmax(420px, 1fr);
+      }
+
+      .right-panel {
+        grid-column: 1 / -1;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .app {
+        padding: 14px;
+      }
+
+      header {
+        display: block;
+      }
+
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .stage-shell {
+        min-height: auto;
+        padding: 10px;
+      }
+
+      canvas {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div>
+        <h1>Apple App Icon 套图生成器</h1>
+        <p class="subhead">上传一张图片，拖动定位，调整缩放和旋转；预览区显示网格、三个参考圆和十字线，导出时不会包含辅助线。</p>
+      </div>
+    </header>
+
+    <section class="layout" aria-label="图标生成工具">
+      <aside class="panel">
+        <h2>输入与调整</h2>
+        <div class="panel-body">
+          <label class="upload" id="dropZone">
+            <input id="fileInput" type="file" accept="image/*">
+            <span>
+              <strong>选择或拖入图片</strong>
+              支持 PNG、JPG、WEBP、SVG 等浏览器可读取格式
+            </span>
+          </label>
+
+          <div class="control">
+            <div class="control-row">
+              <label for="scale">缩放</label>
+              <output id="scaleValue">100%</output>
+            </div>
+            <input id="scale" type="range" min="10" max="320" value="100">
+          </div>
+
+          <div class="control">
+            <div class="control-row">
+              <label for="rotation">旋转</label>
+              <output id="rotationValue">0°</output>
+            </div>
+            <input id="rotation" type="range" min="-180" max="180" value="0">
+          </div>
+
+          <div class="color-row">
+            <label for="backgroundColor">背景色</label>
+            <input id="backgroundColor" type="color" value="#f5f5f7">
+          </div>
+
+          <label class="switch-row">
+            <span>导出透明背景</span>
+            <input id="transparentBg" type="checkbox">
+          </label>
+
+          <label class="switch-row">
+            <span>预览圆角遮罩</span>
+            <input id="maskPreview" type="checkbox" checked>
+          </label>
+
+          <div class="actions">
+            <button class="button secondary" id="fitButton" type="button">适配画布</button>
+            <button class="button secondary" id="resetButton" type="button">重置位置</button>
+            <button class="button" id="downloadPng" type="button" disabled>下载当前平台 PNG</button>
+            <button class="button" id="downloadCurrent" type="button" disabled>导出当前平台 ZIP</button>
+            <button class="button" id="downloadAll" type="button" disabled>导出全部 ZIP</button>
+          </div>
+
+          <p class="status" id="status">等待上传图片。</p>
+        </div>
+      </aside>
+
+      <section class="panel stage-panel" aria-label="图标预览">
+        <div class="platform-tabs" role="tablist" aria-label="选择平台">
+          <button class="platform-tab active" type="button" data-platform="ios" role="tab" aria-selected="true">iOS / macOS</button>
+          <button class="platform-tab" type="button" data-platform="tvos" role="tab" aria-selected="false">tvOS</button>
+          <button class="platform-tab" type="button" data-platform="watchos" role="tab" aria-selected="false">watchOS</button>
+        </div>
+        <div class="stage-toolbar">
+          <span id="stageSize">预览画布：1024 × 1024 px</span>
+          <span>拖动图片可调整位置</span>
+        </div>
+        <div class="stage-shell">
+          <div class="stage-wrap">
+            <canvas id="previewCanvas" width="1024" height="1024" aria-label="图标预览"></canvas>
+            <div class="empty-state" id="emptyState">上传图片后会在这里显示预览辅助线。</div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel right-panel">
+        <h2>规范与输出</h2>
+        <div class="panel-body">
+          <ul class="spec-list">
+            <li><b>Apple 基准</b><span id="specBase">iOS、iPadOS、macOS 的布局尺寸为 1024 × 1024 px 正方形。</span></li>
+            <li><b>遮罩</b><span id="specMask">系统会对 iOS、iPadOS、macOS 图标应用圆角矩形遮罩。</span></li>
+            <li><b>导出内容</b><span id="specExport">输出干净 PNG、iOS AppIcon.appiconset、macOS AppIcon.iconset 和 macOS AppIcon.appiconset。</span></li>
+            <li><b>色彩空间</b><span>浏览器导出为 PNG；建议源图使用 sRGB 或 Display P3。</span></li>
+          </ul>
+
+          <p class="note">Apple 现在推荐使用 Icon Composer 创建分层图标。本工具适合快速生成扁平 PNG 套图和 Xcode 资产目录。</p>
+          <p class="note warning">透明背景可能不适合所有 App Store 场景；用于正式发布前请在 Xcode、模拟器和真机中检查。</p>
+
+          <h2 style="padding:18px 0 10px;">常用尺寸</h2>
+          <ul class="size-list" id="sizeList"></ul>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('previewCanvas');
+    const ctx = canvas.getContext('2d');
+    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById('dropZone');
+    const scaleInput = document.getElementById('scale');
+    const rotationInput = document.getElementById('rotation');
+    const backgroundColorInput = document.getElementById('backgroundColor');
+    const transparentBgInput = document.getElementById('transparentBg');
+    const maskPreviewInput = document.getElementById('maskPreview');
+    const scaleValue = document.getElementById('scaleValue');
+    const rotationValue = document.getElementById('rotationValue');
+    const statusEl = document.getElementById('status');
+    const emptyState = document.getElementById('emptyState');
+    const sizeList = document.getElementById('sizeList');
+    const stageSize = document.getElementById('stageSize');
+    const specBase = document.getElementById('specBase');
+    const specMask = document.getElementById('specMask');
+    const specExport = document.getElementById('specExport');
+    const platformTabs = Array.from(document.querySelectorAll('.platform-tab'));
+    const exportButtons = [
+      document.getElementById('downloadPng'),
+      document.getElementById('downloadCurrent'),
+      document.getElementById('downloadAll')
+    ];
+
+    const makeTransform = () => ({
+      fitScale: 1,
+      scalePercent: 100,
+      rotation: 0,
+      offsetX: 0,
+      offsetY: 0
+    });
+
+    const state = {
+      image: null,
+      fileName: 'app-icon',
+      platformId: 'ios',
+      transforms: {
+        ios: makeTransform(),
+        tvos: makeTransform(),
+        watchos: makeTransform()
+      },
+      dragging: false,
+      lastX: 0,
+      lastY: 0
+    };
+
+    const macIconset = [
+      ['icon_16x16.png', 16],
+      ['icon_16x16@2x.png', 32],
+      ['icon_32x32.png', 32],
+      ['icon_32x32@2x.png', 64],
+      ['icon_128x128.png', 128],
+      ['icon_128x128@2x.png', 256],
+      ['icon_256x256.png', 256],
+      ['icon_256x256@2x.png', 512],
+      ['icon_512x512.png', 512],
+      ['icon_512x512@2x.png', 1024]
+    ];
+
+    const iosImages = [
+      { idiom: 'iphone', size: '20x20', scale: '2x', px: 40, name: 'Icon-App-20x20@2x.png' },
+      { idiom: 'iphone', size: '20x20', scale: '3x', px: 60, name: 'Icon-App-20x20@3x.png' },
+      { idiom: 'iphone', size: '29x29', scale: '2x', px: 58, name: 'Icon-App-29x29@2x.png' },
+      { idiom: 'iphone', size: '29x29', scale: '3x', px: 87, name: 'Icon-App-29x29@3x.png' },
+      { idiom: 'iphone', size: '40x40', scale: '2x', px: 80, name: 'Icon-App-40x40@2x.png' },
+      { idiom: 'iphone', size: '40x40', scale: '3x', px: 120, name: 'Icon-App-40x40@3x.png' },
+      { idiom: 'iphone', size: '60x60', scale: '2x', px: 120, name: 'Icon-App-60x60@2x.png' },
+      { idiom: 'iphone', size: '60x60', scale: '3x', px: 180, name: 'Icon-App-60x60@3x.png' },
+      { idiom: 'ipad', size: '20x20', scale: '1x', px: 20, name: 'Icon-App-20x20@1x.png' },
+      { idiom: 'ipad', size: '20x20', scale: '2x', px: 40, name: 'Icon-App-20x20@2x~ipad.png' },
+      { idiom: 'ipad', size: '29x29', scale: '1x', px: 29, name: 'Icon-App-29x29@1x.png' },
+      { idiom: 'ipad', size: '29x29', scale: '2x', px: 58, name: 'Icon-App-29x29@2x~ipad.png' },
+      { idiom: 'ipad', size: '40x40', scale: '1x', px: 40, name: 'Icon-App-40x40@1x.png' },
+      { idiom: 'ipad', size: '40x40', scale: '2x', px: 80, name: 'Icon-App-40x40@2x~ipad.png' },
+      { idiom: 'ipad', size: '76x76', scale: '1x', px: 76, name: 'Icon-App-76x76@1x.png' },
+      { idiom: 'ipad', size: '76x76', scale: '2x', px: 152, name: 'Icon-App-76x76@2x.png' },
+      { idiom: 'ipad', size: '83.5x83.5', scale: '2x', px: 167, name: 'Icon-App-83.5x83.5@2x.png' },
+      { idiom: 'ios-marketing', size: '1024x1024', scale: '1x', px: 1024, name: 'Icon-App-1024x1024@1x.png' }
+    ];
+
+    const tvosImages = [
+      { width: 800, height: 480, name: 'AppIcon-800x480.png' },
+      { width: 400, height: 240, name: 'AppIcon-400x240.png' }
+    ];
+
+    const watchosImages = [
+      { size: 1088, name: 'AppIcon-1088x1088.png' },
+      { size: 1024, name: 'AppIcon-1024x1024.png' },
+      { size: 216, name: 'AppIcon-216x216.png' },
+      { size: 196, name: 'AppIcon-196x196.png' },
+      { size: 172, name: 'AppIcon-172x172.png' },
+      { size: 100, name: 'AppIcon-100x100.png' },
+      { size: 92, name: 'AppIcon-92x92.png' },
+      { size: 88, name: 'AppIcon-88x88.png' },
+      { size: 80, name: 'AppIcon-80x80.png' },
+      { size: 58, name: 'AppIcon-58x58.png' },
+      { size: 55, name: 'AppIcon-55x55.png' },
+      { size: 48, name: 'AppIcon-48x48.png' }
+    ];
+
+    const platforms = {
+      ios: {
+        id: 'ios',
+        label: 'iOS / macOS',
+        width: 1024,
+        height: 1024,
+        guide: 'square',
+        pngName: 'AppIcon-1024.png',
+        zipSuffix: 'ios-macos-icons',
+        sizeLabels: ['1024 base', 'iPhone 120/180', 'iPad 152/167', 'macOS 16-1024'],
+        specBase: 'iOS、iPadOS、macOS 的布局尺寸为 1024 × 1024 px 正方形。',
+        specMask: '系统会对 iOS、iPadOS、macOS 图标应用圆角矩形遮罩。',
+        specExport: '输出干净 PNG、iOS AppIcon.appiconset、macOS AppIcon.iconset 和 macOS AppIcon.appiconset。'
+      },
+      tvos: {
+        id: 'tvos',
+        label: 'tvOS',
+        width: 800,
+        height: 480,
+        guide: 'tvos',
+        pngName: 'AppIcon-tvOS-800x480.png',
+        zipSuffix: 'tvos-icons',
+        sizeLabels: ['800 x 480 layout', '400 x 240', '5:3 rectangle', 'rounded mask preview'],
+        specBase: 'tvOS 的图标布局尺寸为 800 × 480 px 横向矩形。',
+        specMask: '系统会对 tvOS 图标应用横向圆角矩形遮罩，并可能在聚焦时裁切边缘。',
+        specExport: '输出 tvOS 基准图标 PNG 和同 5:3 比例的缩放 PNG。'
+      },
+      watchos: {
+        id: 'watchos',
+        label: 'watchOS',
+        width: 1088,
+        height: 1088,
+        guide: 'watchos',
+        pngName: 'AppIcon-watchOS-1088.png',
+        zipSuffix: 'watchos-icons',
+        sizeLabels: ['1088 base', '1024 marketing', '216/196/172', '100 and smaller'],
+        specBase: 'watchOS 的图标布局尺寸为 1088 × 1088 px 正方形。',
+        specMask: '系统会对 watchOS 图标应用圆形遮罩，主要内容需要居中。',
+        specExport: '输出 watchOS 基准 PNG 和常用缩放尺寸 PNG。'
+      }
+    };
+
+    function updateSizeList() {
+      const labels = currentPlatform().sizeLabels;
+      sizeList.innerHTML = labels.map((label) => `
+        <li class="size-pill"><i class="size-dot"></i><span>${label}</span></li>
+      `).join('');
+    }
+
+    function currentPlatform() {
+      return platforms[state.platformId];
+    }
+
+    function currentTransform() {
+      return state.transforms[state.platformId];
+    }
+
+    function drawRoundedRect(context, x, y, width, height, radius) {
+      const r = Math.min(radius, width / 2, height / 2);
+      context.beginPath();
+      context.moveTo(x + r, y);
+      context.arcTo(x + width, y, x + width, y + height, r);
+      context.arcTo(x + width, y + height, x, y + height, r);
+      context.arcTo(x, y + height, x, y, r);
+      context.arcTo(x, y, x + width, y, r);
+      context.closePath();
+    }
+
+    function useHighQualitySmoothing(context) {
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = 'high';
+    }
+
+    function renderIcon(width = currentPlatform().width, height = currentPlatform().height, withGuides = false, platform = currentPlatform()) {
+      const output = document.createElement('canvas');
+      output.width = width;
+      output.height = height;
+      const out = output.getContext('2d');
+      const transform = state.transforms[platform.id];
+      const ratioX = width / platform.width;
+      const ratioY = height / platform.height;
+      const ratio = Math.min(ratioX, ratioY);
+      useHighQualitySmoothing(out);
+
+      out.clearRect(0, 0, width, height);
+      if (!transparentBgInput.checked) {
+        out.fillStyle = backgroundColorInput.value;
+        out.fillRect(0, 0, width, height);
+      }
+
+      if (state.image) {
+        out.save();
+        out.translate(width / 2 + transform.offsetX * ratioX, height / 2 + transform.offsetY * ratioY);
+        out.rotate(transform.rotation * Math.PI / 180);
+        const imageScale = transform.fitScale * (transform.scalePercent / 100) * ratio;
+        out.scale(imageScale, imageScale);
+        out.drawImage(state.image, -state.image.naturalWidth / 2, -state.image.naturalHeight / 2);
+        out.restore();
+      }
+
+      if (withGuides) {
+        drawGuides(out, width, height, platform);
+      }
+
+      return output;
+    }
+
+    function resizeCanvasHighQuality(sourceCanvas, targetWidth, targetHeight = targetWidth) {
+      if (sourceCanvas.width === targetWidth && sourceCanvas.height === targetHeight) {
+        return sourceCanvas;
+      }
+
+      let current = sourceCanvas;
+      while (current.width / 2 > targetWidth && current.height / 2 > targetHeight) {
+        const nextWidth = Math.max(targetWidth, Math.floor(current.width / 2));
+        const nextHeight = Math.max(targetHeight, Math.floor(current.height / 2));
+        const next = document.createElement('canvas');
+        next.width = nextWidth;
+        next.height = nextHeight;
+        const nextContext = next.getContext('2d');
+        useHighQualitySmoothing(nextContext);
+        nextContext.drawImage(current, 0, 0, nextWidth, nextHeight);
+        current = next;
+      }
+
+      if (current.width === targetWidth && current.height === targetHeight) {
+        return current;
+      }
+
+      const output = document.createElement('canvas');
+      output.width = targetWidth;
+      output.height = targetHeight;
+      const out = output.getContext('2d');
+      useHighQualitySmoothing(out);
+      out.drawImage(current, 0, 0, targetWidth, targetHeight);
+      return output;
+    }
+
+    function drawGuides(out, width, height, platform) {
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const minSide = Math.min(width, height);
+      const guideColor = 'rgba(0, 0, 0, 0.78)';
+      const gridColumns = platform.guide === 'tvos' ? 14 : 8;
+      const gridRows = platform.guide === 'tvos' ? 8 : 8;
+      const stepX = width / gridColumns;
+      const stepY = height / gridRows;
+
+      out.save();
+      out.strokeStyle = guideColor;
+      out.lineWidth = Math.max(2, minSide / 512);
+
+      for (let i = 1; i < gridColumns; i += 1) {
+        out.beginPath();
+        out.moveTo(i * stepX, 0);
+        out.lineTo(i * stepX, height);
+        out.stroke();
+      }
+
+      for (let i = 1; i < gridRows; i += 1) {
+        out.beginPath();
+        out.moveTo(0, i * stepY);
+        out.lineTo(width, i * stepY);
+        out.stroke();
+      }
+
+      out.beginPath();
+      out.moveTo(centerX, centerY);
+      out.lineTo(0, 0);
+      out.moveTo(centerX, centerY);
+      out.lineTo(width, 0);
+      out.moveTo(centerX, centerY);
+      out.lineTo(width, height);
+      out.moveTo(centerX, centerY);
+      out.lineTo(0, height);
+      out.stroke();
+
+      const circleDiameters = platform.guide === 'tvos' ? [0.84, 0.52, 0.24] : [0.8, 0.5, 0.2];
+      circleDiameters.forEach((diameter) => {
+        out.beginPath();
+        out.arc(centerX, centerY, minSide * diameter / 2, 0, Math.PI * 2);
+        out.stroke();
+      });
+
+      if (maskPreviewInput.checked) {
+        out.save();
+        if (platform.guide === 'watchos') {
+          out.beginPath();
+          out.arc(centerX, centerY, minSide / 2, 0, Math.PI * 2);
+          out.closePath();
+        } else {
+          const radius = platform.guide === 'tvos' ? minSide * 0.08 : minSide * 0.2237;
+          drawRoundedRect(out, 0, 0, width, height, radius);
+        }
+        out.strokeStyle = 'rgba(17, 24, 39, 0.58)';
+        out.setLineDash([minSide * 0.018, minSide * 0.012]);
+        out.lineWidth = Math.max(2, minSide / 256);
+        out.stroke();
+        out.restore();
+      }
+
+      out.restore();
+    }
+
+    function redraw() {
+      const platform = currentPlatform();
+      const transform = currentTransform();
+      canvas.width = platform.width;
+      canvas.height = platform.height;
+      canvas.style.aspectRatio = `${platform.width} / ${platform.height}`;
+      canvas.style.borderRadius = platform.guide === 'watchos' ? '50%' : platform.guide === 'tvos' ? '7%' : '22.37%';
+      canvas.style.width = platform.guide === 'tvos' ? 'min(100%, 92vh)' : 'min(100%, 74vh)';
+      stageSize.textContent = `预览画布：${platform.width} × ${platform.height} px`;
+      specBase.textContent = platform.specBase;
+      specMask.textContent = platform.specMask;
+      specExport.textContent = platform.specExport;
+      document.getElementById('downloadPng').textContent = `下载 ${platform.label} PNG`;
+      document.getElementById('downloadCurrent').textContent = `导出 ${platform.label} ZIP`;
+      scaleValue.textContent = `${transform.scalePercent}%`;
+      rotationValue.textContent = `${transform.rotation}°`;
+      scaleInput.value = transform.scalePercent;
+      rotationInput.value = transform.rotation;
+      platformTabs.forEach((tab) => {
+        const active = tab.dataset.platform === state.platformId;
+        tab.classList.toggle('active', active);
+        tab.setAttribute('aria-selected', String(active));
+      });
+      updateSizeList();
+      const preview = renderIcon(platform.width, platform.height, true, platform);
+      useHighQualitySmoothing(ctx);
+      ctx.clearRect(0, 0, platform.width, platform.height);
+      ctx.drawImage(preview, 0, 0);
+      emptyState.hidden = Boolean(state.image);
+      exportButtons.forEach((button) => {
+        button.disabled = !state.image;
+      });
+    }
+
+    function resetPosition() {
+      const transform = currentTransform();
+      transform.offsetX = 0;
+      transform.offsetY = 0;
+      redraw();
+    }
+
+    function fitPlatform(platformId) {
+      if (!state.image) return;
+      const platform = platforms[platformId];
+      const transform = state.transforms[platformId];
+      transform.fitScale = Math.max(platform.width / state.image.naturalWidth, platform.height / state.image.naturalHeight);
+      transform.scalePercent = 100;
+      transform.rotation = 0;
+      transform.offsetX = 0;
+      transform.offsetY = 0;
+    }
+
+    function fitImage() {
+      fitPlatform(state.platformId);
+      redraw();
+    }
+
+    function loadFile(file) {
+      if (!file || !file.type.startsWith('image/')) {
+        statusEl.textContent = '请选择图片文件。';
+        return;
+      }
+
+      const url = URL.createObjectURL(file);
+      const image = new Image();
+      image.onload = () => {
+        URL.revokeObjectURL(url);
+        state.image = image;
+        state.fileName = file.name.replace(/\.[^.]+$/, '') || 'app-icon';
+        Object.keys(platforms).forEach(fitPlatform);
+        redraw();
+        statusEl.textContent = `已载入 ${file.name}，原图 ${image.naturalWidth} × ${image.naturalHeight}px。`;
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(url);
+        statusEl.textContent = '图片读取失败，请换一个文件重试。';
+      };
+      image.src = url;
+    }
+
+    function canvasPoint(event) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = event.clientX ?? event.touches?.[0]?.clientX;
+      const clientY = event.clientY ?? event.touches?.[0]?.clientY;
+      const platform = currentPlatform();
+      return {
+        x: (clientX - rect.left) * platform.width / rect.width,
+        y: (clientY - rect.top) * platform.height / rect.height
+      };
+    }
+
+    function canvasToBlob(sourceCanvas) {
+      return new Promise((resolve) => sourceCanvas.toBlob(resolve, 'image/png'));
+    }
+
+    function textBlob(text) {
+      return new Blob([text], { type: 'application/json;charset=utf-8' });
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+
+    async function pngEntry(path, width, height = width, masterCanvas = renderIcon(currentPlatform().width, currentPlatform().height, false, currentPlatform())) {
+      const icon = resizeCanvasHighQuality(masterCanvas, width, height);
+      return { path, blob: await canvasToBlob(icon) };
+    }
+
+    function iosContentsJson() {
+      return {
+        images: iosImages.map((item) => ({
+          size: item.size,
+          idiom: item.idiom,
+          filename: item.name,
+          scale: item.scale
+        })),
+        info: {
+          version: 1,
+          author: 'xcode'
+        }
+      };
+    }
+
+    function macContentsJson() {
+      return {
+        images: [
+          { size: '16x16', idiom: 'mac', filename: 'icon_16x16.png', scale: '1x' },
+          { size: '16x16', idiom: 'mac', filename: 'icon_16x16@2x.png', scale: '2x' },
+          { size: '32x32', idiom: 'mac', filename: 'icon_32x32.png', scale: '1x' },
+          { size: '32x32', idiom: 'mac', filename: 'icon_32x32@2x.png', scale: '2x' },
+          { size: '128x128', idiom: 'mac', filename: 'icon_128x128.png', scale: '1x' },
+          { size: '128x128', idiom: 'mac', filename: 'icon_128x128@2x.png', scale: '2x' },
+          { size: '256x256', idiom: 'mac', filename: 'icon_256x256.png', scale: '1x' },
+          { size: '256x256', idiom: 'mac', filename: 'icon_256x256@2x.png', scale: '2x' },
+          { size: '512x512', idiom: 'mac', filename: 'icon_512x512.png', scale: '1x' },
+          { size: '512x512', idiom: 'mac', filename: 'icon_512x512@2x.png', scale: '2x' }
+        ],
+        info: {
+          version: 1,
+          author: 'xcode'
+        }
+      };
+    }
+
+    async function makeIosEntries(prefix = '', masterCanvas = renderIcon(platforms.ios.width, platforms.ios.height, false, platforms.ios)) {
+      const entries = [];
+      for (const item of iosImages) {
+        entries.push(await pngEntry(`${prefix}iOS/AppIcon.appiconset/${item.name}`, item.px, item.px, masterCanvas));
+      }
+      entries.push({
+        path: `${prefix}iOS/AppIcon.appiconset/Contents.json`,
+        blob: textBlob(JSON.stringify(iosContentsJson(), null, 2))
+      });
+      return entries;
+    }
+
+    async function makeMacEntries(prefix = '', masterCanvas = renderIcon(platforms.ios.width, platforms.ios.height, false, platforms.ios)) {
+      const entries = [];
+      for (const [name, size] of macIconset) {
+        entries.push(await pngEntry(`${prefix}macOS/AppIcon.iconset/${name}`, size, size, masterCanvas));
+        entries.push(await pngEntry(`${prefix}macOS/AppIcon.appiconset/${name}`, size, size, masterCanvas));
+      }
+      entries.push({
+        path: `${prefix}macOS/AppIcon.appiconset/Contents.json`,
+        blob: textBlob(JSON.stringify(macContentsJson(), null, 2))
+      });
+      return entries;
+    }
+
+    async function makeTvEntries(prefix = '', masterCanvas = renderIcon(platforms.tvos.width, platforms.tvos.height, false, platforms.tvos)) {
+      const entries = [];
+      for (const item of tvosImages) {
+        entries.push(await pngEntry(`${prefix}tvOS/${item.name}`, item.width, item.height, masterCanvas));
+      }
+      entries.push({
+        path: `${prefix}tvOS/Contents.json`,
+        blob: textBlob(JSON.stringify({
+          images: tvosImages.map((item) => ({
+            filename: item.name,
+            size: `${item.width}x${item.height}`
+          })),
+          info: { version: 1, author: 'icon-generator' }
+        }, null, 2))
+      });
+      return entries;
+    }
+
+    async function makeWatchEntries(prefix = '', masterCanvas = renderIcon(platforms.watchos.width, platforms.watchos.height, false, platforms.watchos)) {
+      const entries = [];
+      for (const item of watchosImages) {
+        entries.push(await pngEntry(`${prefix}watchOS/${item.name}`, item.size, item.size, masterCanvas));
+      }
+      entries.push({
+        path: `${prefix}watchOS/Contents.json`,
+        blob: textBlob(JSON.stringify({
+          images: watchosImages.map((item) => ({
+            filename: item.name,
+            size: `${item.size}x${item.size}`
+          })),
+          info: { version: 1, author: 'icon-generator' }
+        }, null, 2))
+      });
+      return entries;
+    }
+
+    function crc32(bytes) {
+      let crc = -1;
+      for (let i = 0; i < bytes.length; i += 1) {
+        crc ^= bytes[i];
+        for (let j = 0; j < 8; j += 1) {
+          crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+        }
+      }
+      return (crc ^ -1) >>> 0;
+    }
+
+    function uint16(value) {
+      return [value & 255, (value >>> 8) & 255];
+    }
+
+    function uint32(value) {
+      return [value & 255, (value >>> 8) & 255, (value >>> 16) & 255, (value >>> 24) & 255];
+    }
+
+    async function createZip(entries) {
+      const encoder = new TextEncoder();
+      const chunks = [];
+      const central = [];
+      let offset = 0;
+
+      for (const entry of entries) {
+        const nameBytes = encoder.encode(entry.path);
+        const data = new Uint8Array(await entry.blob.arrayBuffer());
+        const crc = crc32(data);
+        const local = new Uint8Array([
+          ...uint32(0x04034b50),
+          ...uint16(20),
+          ...uint16(0x0800),
+          ...uint16(0),
+          ...uint16(0),
+          ...uint16(0),
+          ...uint32(crc),
+          ...uint32(data.length),
+          ...uint32(data.length),
+          ...uint16(nameBytes.length),
+          ...uint16(0)
+        ]);
+        chunks.push(local, nameBytes, data);
+
+        const centralHeader = new Uint8Array([
+          ...uint32(0x02014b50),
+          ...uint16(20),
+          ...uint16(20),
+          ...uint16(0x0800),
+          ...uint16(0),
+          ...uint16(0),
+          ...uint16(0),
+          ...uint32(crc),
+          ...uint32(data.length),
+          ...uint32(data.length),
+          ...uint16(nameBytes.length),
+          ...uint16(0),
+          ...uint16(0),
+          ...uint16(0),
+          ...uint16(0),
+          ...uint32(0),
+          ...uint32(offset)
+        ]);
+        central.push(centralHeader, nameBytes);
+        offset += local.length + nameBytes.length + data.length;
+      }
+
+      const centralSize = central.reduce((sum, item) => sum + item.length, 0);
+      const end = new Uint8Array([
+        ...uint32(0x06054b50),
+        ...uint16(0),
+        ...uint16(0),
+        ...uint16(entries.length),
+        ...uint16(entries.length),
+        ...uint32(centralSize),
+        ...uint32(offset),
+        ...uint16(0)
+      ]);
+
+      return new Blob([...chunks, ...central, end], { type: 'application/zip' });
+    }
+
+    function renderPlatformMaster(platformId) {
+      const platform = platforms[platformId];
+      return renderIcon(platform.width, platform.height, false, platform);
+    }
+
+    async function makePlatformEntries(platformId, prefix = '') {
+      if (platformId === 'ios') {
+        const masterCanvas = renderPlatformMaster('ios');
+        return [
+          { path: `${prefix}iOS-macOS/AppIcon-1024.png`, blob: await canvasToBlob(masterCanvas) },
+          ...(await makeIosEntries(prefix, masterCanvas)),
+          ...(await makeMacEntries(prefix, masterCanvas))
+        ];
+      }
+
+      if (platformId === 'tvos') {
+        const masterCanvas = renderPlatformMaster('tvos');
+        return makeTvEntries(prefix, masterCanvas);
+      }
+
+      const masterCanvas = renderPlatformMaster('watchos');
+      return makeWatchEntries(prefix, masterCanvas);
+    }
+
+    async function exportZip(kind) {
+      if (!state.image) return;
+      statusEl.textContent = '正在生成高质量套图...';
+      const prefix = `${state.fileName}-apple-icons/`;
+      let entries = [];
+
+      if (kind === 'current') {
+        entries = await makePlatformEntries(state.platformId);
+      } else {
+        entries = [
+          ...(await makePlatformEntries('ios', prefix)),
+          ...(await makePlatformEntries('tvos', prefix)),
+          ...(await makePlatformEntries('watchos', prefix))
+        ];
+      }
+
+      const zip = await createZip(entries);
+      const suffix = kind === 'current' ? currentPlatform().zipSuffix : 'apple-icons';
+      downloadBlob(zip, `${state.fileName}-${suffix}.zip`);
+      statusEl.textContent = '套图已生成。';
+    }
+
+    fileInput.addEventListener('change', (event) => loadFile(event.target.files[0]));
+
+    dropZone.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      dropZone.classList.add('dragging');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('dragging');
+    });
+
+    dropZone.addEventListener('drop', (event) => {
+      event.preventDefault();
+      dropZone.classList.remove('dragging');
+      loadFile(event.dataTransfer.files[0]);
+    });
+
+    scaleInput.addEventListener('input', () => {
+      currentTransform().scalePercent = Number(scaleInput.value);
+      redraw();
+    });
+
+    rotationInput.addEventListener('input', () => {
+      currentTransform().rotation = Number(rotationInput.value);
+      redraw();
+    });
+
+    backgroundColorInput.addEventListener('input', redraw);
+    transparentBgInput.addEventListener('change', redraw);
+    maskPreviewInput.addEventListener('change', redraw);
+    document.getElementById('fitButton').addEventListener('click', fitImage);
+    document.getElementById('resetButton').addEventListener('click', resetPosition);
+
+    document.getElementById('downloadPng').addEventListener('click', async () => {
+      if (!state.image) return;
+      const platform = currentPlatform();
+      const masterCanvas = renderIcon(platform.width, platform.height, false, platform);
+      downloadBlob(await canvasToBlob(masterCanvas), `${state.fileName}-${platform.pngName}`);
+    });
+
+    document.getElementById('downloadCurrent').addEventListener('click', () => exportZip('current'));
+    document.getElementById('downloadAll').addEventListener('click', () => exportZip('all'));
+
+    platformTabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        state.platformId = tab.dataset.platform;
+        redraw();
+      });
+    });
+
+    canvas.addEventListener('pointerdown', (event) => {
+      if (!state.image) return;
+      canvas.setPointerCapture(event.pointerId);
+      const point = canvasPoint(event);
+      state.dragging = true;
+      state.lastX = point.x;
+      state.lastY = point.y;
+    });
+
+    canvas.addEventListener('pointermove', (event) => {
+      if (!state.dragging) return;
+      const point = canvasPoint(event);
+      const transform = currentTransform();
+      transform.offsetX += point.x - state.lastX;
+      transform.offsetY += point.y - state.lastY;
+      state.lastX = point.x;
+      state.lastY = point.y;
+      redraw();
+    });
+
+    canvas.addEventListener('pointerup', () => {
+      state.dragging = false;
+    });
+
+    canvas.addEventListener('pointercancel', () => {
+      state.dragging = false;
+    });
+
+    updateSizeList();
+    redraw();
+  </script>
+</body>
+</html>
