@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Icon browser smoke test</title>
+</head>
+<body data-result="PENDING">
+  <iframe id="app" title="Icon generator" hidden></iframe>
+  <script>
+    function waitFor(predicate, message) {
+      return new Promise((resolve, reject) => {
+        let attempts = 0;
+        const check = () => {
+          if (predicate()) {
+            resolve();
+          } else if (attempts >= 120) {
+            reject(new Error(message));
+          } else {
+            attempts += 1;
+            requestAnimationFrame(check);
+          }
+        };
+        check();
+      });
+    }
+
+    document.getElementById('app').addEventListener('load', async (event) => {
+      try {
+        const app = event.currentTarget.contentWindow;
+        const iconCore = app.IconCore;
+        if (!iconCore) {
+          throw new Error('inline IconCore unavailable');
+        }
+        if (app.document.querySelector('link[rel="stylesheet"], script[src]')) {
+          throw new Error('index.html is not self-contained');
+        }
+
+        const backgroundSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><rect width="1024" height="1024" fill="#0a84ff"/></svg>';
+        const foregroundSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><circle cx="512" cy="512" r="260" fill="white"/></svg>';
+        app.loadLayerFile('default', 'background', new app.File([backgroundSvg], 'background.svg', { type: 'image/svg+xml' }));
+        app.loadLayerFile('default', 'foreground', new app.File([foregroundSvg], 'foreground.svg', { type: 'image/svg+xml' }));
+        await waitFor(() => !app.document.getElementById('downloadZip').disabled, 'required layers did not enable export');
+
+        app.document.querySelector('[data-mode="dark"]').click();
+        const inheritedCard = app.document.querySelector('[data-card-mode="dark"][data-card-layer="background"]');
+        if (!inheritedCard.classList.contains('inherited') || !inheritedCard.textContent.includes('继承 Default')) {
+          throw new Error('Dark mode did not inherit Default layers');
+        }
+
+        const preview = app.renderIcon();
+        const previewBlob = await app.canvasToBlob(preview);
+        const previewBytes = new app.Uint8Array(await previewBlob.arrayBuffer());
+        if (iconCore.pngUsesTransparency(previewBytes)) {
+          throw new Error('PNG contains transparency');
+        }
+
+        let download = null;
+        app.downloadBlob = (blob, filename) => {
+          download = { blob, filename };
+        };
+        await app.exportZip();
+        await waitFor(() => download, 'ZIP download was not produced');
+        const zipText = new TextDecoder().decode(new Uint8Array(await download.blob.arrayBuffer()));
+        const requiredPaths = [
+          'Layers/Default/01-background.svg',
+          'Layers/Default/03-foreground.svg',
+          'Layers/Dark/01-background.svg',
+          'Previews/iOS-macOS/AppIcon-Dark-1024x1024.png',
+          'Xcode/iOS/AppIcon.appiconset/Contents.json',
+          'composition.json'
+        ];
+        requiredPaths.forEach((path) => {
+          if (!zipText.includes(path)) {
+            throw new Error(`ZIP is missing ${path}`);
+          }
+        });
+
+        window.testZipBlob = download.blob;
+        document.body.dataset.result = 'PASS';
+        document.body.textContent = 'self-contained layered icon flow passed';
+      } catch (error) {
+        document.body.dataset.result = 'FAIL';
+        document.body.textContent = error.message;
+      }
+    });
+    document.getElementById('app').src = '../index.html';
+  </script>
+</body>
+</html>

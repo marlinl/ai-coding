@@ -1,0 +1,126 @@
+.summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.summary-card {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.summary-card b {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-card span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 6px;
+}
+
+.color-card {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.color-card.pantone {
+  border-color: #ff7a59;
+  box-shadow: 0 0 0 2px rgba(255, 122, 89, 0.16), var(--shadow);
+}
+
+.swatch {
+  height: 42px;
+  border-bottom: 1px solid rgba(19, 32, 34, 0.1);
+  background: var(--color);
+}
+
+.color-info {
+  display: grid;
+  gap: 3px;
+  padding: 6px;
+}
+
+.color-name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.color-name strong {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rgb,
+.hex {
+  color: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tag {
+  flex: 0 0 auto;
+  padding: 3px 6px;
+  border: 1px solid rgba(255, 122, 89, 0.42);
+  border-radius: 999px;
+  background: #fff1ec;
+  color: #ba3a1f;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0;
+}
+
+.pantone-strip {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  margin: 18px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.section-title.secondary-title {
+  margin-top: 24px;
+}
+
+@media (max-width: 1120px) {
+  .palette,
+  .pantone-strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .summary {
+    display: block;
+  }
+
+  .summary-card {
+    margin-bottom: 10px;
+  }
+
+  .palette,
+  .pantone-strip {
+    grid-template-columns: 1fr;
+  }
+}

@@ -3,20 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Apple App Icon 套图生成器</title>
+  <title>Apple App Icon 图层生成器</title>
   <style>
     :root {
       color-scheme: light;
-      --bg: #f7f8fa;
+      --bg: #f6f7f9;
       --panel: #ffffff;
       --text: #15171a;
       --muted: #68707d;
-      --line: #d8dde6;
+      --line: #dce1e8;
+      --soft-line: #eef1f5;
       --accent: #0a84ff;
       --accent-dark: #0067d5;
+      --accent-soft: #eaf4ff;
+      --success: #18733c;
       --warn: #b45309;
-      --shadow: 0 18px 55px rgba(19, 31, 54, 0.12);
       --radius: 8px;
+      --shadow: 0 14px 42px rgba(20, 31, 49, 0.08);
     }
 
     * {
@@ -26,63 +29,112 @@
     body {
       margin: 0;
       min-height: 100vh;
+      overflow-x: hidden;
       background:
-        linear-gradient(180deg, rgba(255,255,255,0.95), rgba(247,248,250,0.98)),
-        repeating-linear-gradient(90deg, rgba(10,132,255,0.04) 0 1px, transparent 1px 44px);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(246, 247, 249, 0.98)),
+        var(--bg);
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", sans-serif;
     }
 
     button,
-    input,
-    select {
+    input {
       font: inherit;
     }
 
-    .app {
-      max-width: 1440px;
-      margin: 0 auto;
-      padding: 22px;
+    button:focus-visible,
+    input:focus-visible,
+    label:has(input:focus-visible) {
+      outline: 3px solid rgba(10, 132, 255, 0.28);
+      outline-offset: 2px;
     }
 
-    header {
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .page {
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 28px 24px 40px;
+    }
+
+    .topbar {
       display: flex;
       align-items: flex-end;
       justify-content: space-between;
-      gap: 18px;
-      padding: 8px 0 20px;
+      gap: 20px;
+      padding: 18px 0 24px;
+      border-bottom: 1px solid var(--line);
     }
 
-    h1 {
+    .brand h1 {
       margin: 0;
-      font-size: clamp(24px, 3vw, 40px);
-      line-height: 1.08;
+      font-size: clamp(28px, 4vw, 46px);
+      line-height: 1.05;
       letter-spacing: 0;
     }
 
-    .subhead {
-      margin: 8px 0 0;
+    .brand p {
+      max-width: 820px;
+      margin: 10px 0 0;
       color: var(--muted);
       font-size: 14px;
-      line-height: 1.6;
-      max-width: 740px;
+      line-height: 1.7;
+    }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .nav a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 7px 12px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--panel);
+      color: #344054;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .nav a:hover {
+      border-color: rgba(10, 132, 255, 0.42);
+      color: var(--accent-dark);
     }
 
     .layout {
       display: grid;
-      grid-template-columns: minmax(290px, 360px) minmax(420px, 1fr) minmax(280px, 330px);
+      grid-template-columns: minmax(330px, 390px) minmax(430px, 1fr) minmax(280px, 330px);
       gap: 18px;
       align-items: start;
+      padding-top: 28px;
+    }
+
+    .layout > *,
+    .panel,
+    .panel-body,
+    .appearance-tabs,
+    .platform-tabs,
+    .layer-card,
+    .layer-actions {
+      min-width: 0;
     }
 
     .panel {
-      background: var(--panel);
-      border: 1px solid rgba(122, 132, 150, 0.22);
+      border: 1px solid var(--line);
       border-radius: var(--radius);
+      background: var(--panel);
       box-shadow: var(--shadow);
     }
 
-    .panel h2 {
+    .panel > h2 {
       margin: 0;
       padding: 16px 16px 0;
       font-size: 15px;
@@ -93,37 +145,152 @@
       padding: 16px;
     }
 
-    .upload {
+    .appearance-tabs,
+    .platform-tabs {
       display: grid;
-      place-items: center;
-      min-height: 150px;
-      padding: 18px;
-      border: 1px dashed #9aa6b8;
-      border-radius: var(--radius);
-      background: #fbfcfe;
-      text-align: center;
+      gap: 8px;
+    }
+
+    .appearance-tabs {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-bottom: 14px;
+    }
+
+    .platform-tabs {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-bottom: 12px;
+    }
+
+    .tab-button {
+      min-height: 38px;
+      padding: 7px 8px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--panel);
+      color: #344054;
       cursor: pointer;
-      transition: border-color 160ms ease, background 160ms ease;
+      font-size: 13px;
+      font-weight: 720;
     }
 
-    .upload:hover,
-    .upload.dragging {
+    .tab-button.active {
       border-color: var(--accent);
-      background: #f0f7ff;
+      background: var(--accent-soft);
+      color: #005eb8;
     }
 
-    .upload strong {
-      display: block;
-      margin-bottom: 6px;
-      font-size: 15px;
-    }
-
-    .upload span {
+    .mode-note {
+      margin: 0 0 12px;
       color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .mode-panel[hidden] {
+      display: none;
+    }
+
+    .layer-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .layer-card {
+      padding: 11px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fbfcfe;
+    }
+
+    .layer-card.has-file {
+      border-color: rgba(24, 115, 60, 0.32);
+      background: #f7fcf8;
+    }
+
+    .layer-card.inherited {
+      border-color: rgba(10, 132, 255, 0.28);
+      background: #f6faff;
+    }
+
+    .layer-head,
+    .layer-actions,
+    .control-row,
+    .switch-row,
+    .color-row,
+    .stage-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .layer-head strong {
       font-size: 13px;
     }
 
-    #fileInput {
+    .requirement {
+      padding: 2px 6px;
+      border-radius: 5px;
+      background: #f1f3f6;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .requirement.required {
+      background: #fff2e8;
+      color: #9a4b09;
+    }
+
+    .layer-meta {
+      min-height: 18px;
+      margin: 7px 0 9px;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.5;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .layer-picker,
+    .clear-layer {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 32px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .layer-picker {
+      flex: 1;
+      min-width: 0;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .clear-layer {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: #344054;
+    }
+
+    .layer-picker span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .clear-layer[hidden] {
+      display: none;
+    }
+
+    .file-input {
       position: absolute;
       inline-size: 1px;
       block-size: 1px;
@@ -132,18 +299,19 @@
     }
 
     .control {
-      margin-top: 16px;
+      margin-top: 15px;
     }
 
-    .control-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 8px;
+    .control-row,
+    .switch-row,
+    .color-row {
       color: #28313d;
       font-size: 13px;
       font-weight: 650;
+    }
+
+    .control-row {
+      margin-bottom: 8px;
     }
 
     .control-row output {
@@ -168,14 +336,7 @@
 
     .switch-row,
     .color-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
       margin-top: 14px;
-      color: #28313d;
-      font-size: 13px;
-      font-weight: 650;
     }
 
     .switch-row input {
@@ -186,32 +347,8 @@
 
     .actions {
       display: grid;
-      gap: 10px;
-      margin-top: 18px;
-    }
-
-    .platform-tabs {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .platform-tab {
-      min-height: 36px;
-      border: 1px solid var(--line);
-      border-radius: 7px;
-      background: #fff;
-      color: #344054;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .platform-tab.active {
-      border-color: var(--accent);
-      background: #eaf4ff;
-      color: #005eb8;
+      gap: 9px;
+      margin-top: 17px;
     }
 
     .button {
@@ -220,12 +357,12 @@
       justify-content: center;
       min-height: 40px;
       padding: 8px 12px;
-      border: 1px solid transparent;
+      border: 1px solid var(--accent);
       border-radius: 7px;
       background: var(--accent);
-      color: white;
+      color: #fff;
       cursor: pointer;
-      font-weight: 700;
+      font-weight: 750;
       transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
     }
 
@@ -238,9 +375,9 @@
     }
 
     .button.secondary {
-      background: #fff;
-      color: #1c2633;
       border-color: var(--line);
+      background: var(--panel);
+      color: #1c2633;
     }
 
     .button.secondary:hover {
@@ -248,11 +385,33 @@
     }
 
     .button:disabled {
+      border-color: transparent;
       background: #d7dde6;
       color: #7c8797;
       cursor: not-allowed;
       transform: none;
-      border-color: transparent;
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px;
+    }
+
+    .status {
+      min-height: 36px;
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .status[data-tone="warning"] {
+      color: var(--warn);
+    }
+
+    .status[data-tone="success"] {
+      color: var(--success);
     }
 
     .stage-panel {
@@ -260,30 +419,49 @@
     }
 
     .stage-toolbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
       margin-bottom: 12px;
       color: var(--muted);
       font-size: 13px;
     }
 
+    .mode-indicator {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: #005eb8;
+      font-weight: 700;
+    }
+
+    .mode-indicator.dark {
+      background: #25262a;
+      color: #fff;
+    }
+
     .stage-shell {
       display: grid;
-      place-items: center;
       min-height: min(74vh, 820px);
+      place-items: center;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
       background:
         linear-gradient(45deg, #e9edf3 25%, transparent 25%),
         linear-gradient(-45deg, #e9edf3 25%, transparent 25%),
         linear-gradient(45deg, transparent 75%, #e9edf3 75%),
         linear-gradient(-45deg, transparent 75%, #e9edf3 75%);
-      background-size: 26px 26px;
       background-position: 0 0, 0 13px, 13px -13px, -13px 0;
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      overflow: hidden;
+      background-size: 26px 26px;
       touch-action: none;
+    }
+
+    .stage-wrap {
+      position: relative;
+      display: grid;
+      width: 100%;
+      place-items: center;
     }
 
     canvas {
@@ -292,8 +470,8 @@
       max-width: 820px;
       aspect-ratio: 1;
       border-radius: 22.37%;
+      background: #fff;
       box-shadow: 0 12px 44px rgba(17, 24, 39, 0.23);
-      background: white;
       cursor: grab;
     }
 
@@ -303,19 +481,13 @@
 
     .empty-state {
       position: absolute;
-      max-width: 280px;
+      max-width: 300px;
+      padding: 12px;
       color: #5d6673;
-      text-align: center;
       font-size: 14px;
       line-height: 1.6;
+      text-align: center;
       pointer-events: none;
-    }
-
-    .stage-wrap {
-      position: relative;
-      display: grid;
-      place-items: center;
-      width: 100%;
     }
 
     .spec-list,
@@ -329,17 +501,17 @@
 
     .spec-list li {
       display: grid;
-      grid-template-columns: 92px 1fr;
+      grid-template-columns: 88px 1fr;
       gap: 10px;
       padding-bottom: 10px;
-      border-bottom: 1px solid #eef1f5;
+      border-bottom: 1px solid var(--soft-line);
       font-size: 13px;
       line-height: 1.45;
     }
 
     .spec-list li:last-child {
-      border-bottom: 0;
       padding-bottom: 0;
+      border-bottom: 0;
     }
 
     .spec-list b {
@@ -348,6 +520,10 @@
 
     .spec-list span {
       color: var(--muted);
+    }
+
+    .subsection-title {
+      padding: 18px 0 10px;
     }
 
     .size-list {
@@ -360,11 +536,11 @@
       gap: 8px;
       min-width: 0;
       padding: 8px;
-      border: 1px solid #edf0f5;
+      border: 1px solid var(--soft-line);
       border-radius: 7px;
       background: #fbfcfe;
-      font-size: 12px;
       color: #344054;
+      font-size: 12px;
     }
 
     .size-dot {
@@ -379,32 +555,9 @@
       overflow-wrap: anywhere;
     }
 
-    .note {
-      margin-top: 14px;
-      padding: 10px 12px;
-      border-left: 3px solid var(--accent);
-      background: #f2f8ff;
-      color: #3d4b5c;
-      font-size: 12px;
-      line-height: 1.55;
-    }
-
-    .warning {
-      border-left-color: var(--warn);
-      background: #fff8ed;
-    }
-
-    .status {
-      min-height: 18px;
-      margin-top: 12px;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.5;
-    }
-
-    @media (max-width: 1120px) {
+    @media (max-width: 1160px) {
       .layout {
-        grid-template-columns: 330px minmax(420px, 1fr);
+        grid-template-columns: 360px minmax(420px, 1fr);
       }
 
       .right-panel {
@@ -412,13 +565,18 @@
       }
     }
 
-    @media (max-width: 760px) {
-      .app {
-        padding: 14px;
+    @media (max-width: 780px) {
+      .page {
+        padding: 18px 14px 28px;
       }
 
-      header {
+      .topbar {
         display: block;
+      }
+
+      .nav {
+        justify-content: flex-start;
+        margin-top: 18px;
       }
 
       .layout {
@@ -434,32 +592,146 @@
         width: 100%;
       }
     }
+
+    @media (max-width: 480px) {
+      .appearance-tabs,
+      .button-row,
+      .platform-tabs {
+        grid-template-columns: 1fr;
+      }
+
+      .stage-toolbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
   </style>
 </head>
 <body>
-  <main class="app">
-    <header>
-      <div>
-        <h1>Apple App Icon 套图生成器</h1>
-        <p class="subhead">上传一张图片，拖动定位，调整缩放和旋转；预览区显示网格、三个参考圆和十字线，导出时不会包含辅助线。</p>
+  <main class="page">
+    <header class="topbar">
+      <div class="brand">
+        <h1>Apple App Icon 图层生成器</h1>
+        <p>组合 Default 与 Dark 图层，预览 Apple 平台构图，并导出独立素材、合成 PNG 和 Xcode 兼容资产。</p>
       </div>
+      <nav class="nav" aria-label="页面导航">
+        <a href="tools.html">工具集</a>
+        <a href="color.html">颜色工具</a>
+      </nav>
     </header>
 
     <section class="layout" aria-label="图标生成工具">
       <aside class="panel">
-        <h2>输入与调整</h2>
+        <h2>图层与模式</h2>
         <div class="panel-body">
-          <label class="upload" id="dropZone">
-            <input id="fileInput" type="file" accept="image/*">
-            <span>
-              <strong>选择或拖入图片</strong>
-              支持 PNG、JPG、WEBP、SVG 等浏览器可读取格式
-            </span>
-          </label>
+          <div class="appearance-tabs" role="tablist" aria-label="选择图标模式">
+            <button class="tab-button appearance-tab active" type="button" role="tab" aria-selected="true" aria-controls="defaultPanel" data-mode="default">Default mode</button>
+            <button class="tab-button appearance-tab" type="button" role="tab" aria-selected="false" aria-controls="darkPanel" data-mode="dark">Dark mode</button>
+          </div>
+
+          <section class="mode-panel" id="defaultPanel" role="tabpanel">
+            <p class="mode-note">背景和前景为必需，中景可选。三个图层请使用相同画布尺寸。</p>
+            <div class="layer-list">
+              <div class="layer-card" data-card-mode="default" data-card-layer="background">
+                <div class="layer-head">
+                  <strong>背景层</strong>
+                  <span class="requirement required">必需</span>
+                </div>
+                <p class="layer-meta">未上传</p>
+                <div class="layer-actions">
+                  <label class="layer-picker">
+                    <span>选择 SVG / PNG</span>
+                    <input class="file-input" type="file" accept=".svg,.png,image/svg+xml,image/png" data-mode="default" data-layer="background">
+                  </label>
+                  <button class="clear-layer" type="button" data-clear-mode="default" data-clear-layer="background" hidden>清除</button>
+                </div>
+              </div>
+
+              <div class="layer-card" data-card-mode="default" data-card-layer="middle">
+                <div class="layer-head">
+                  <strong>中景层</strong>
+                  <span class="requirement">可选</span>
+                </div>
+                <p class="layer-meta">未上传</p>
+                <div class="layer-actions">
+                  <label class="layer-picker">
+                    <span>选择 SVG / PNG</span>
+                    <input class="file-input" type="file" accept=".svg,.png,image/svg+xml,image/png" data-mode="default" data-layer="middle">
+                  </label>
+                  <button class="clear-layer" type="button" data-clear-mode="default" data-clear-layer="middle" hidden>清除</button>
+                </div>
+              </div>
+
+              <div class="layer-card" data-card-mode="default" data-card-layer="foreground">
+                <div class="layer-head">
+                  <strong>前景层</strong>
+                  <span class="requirement required">必需</span>
+                </div>
+                <p class="layer-meta">未上传</p>
+                <div class="layer-actions">
+                  <label class="layer-picker">
+                    <span>选择 SVG / PNG</span>
+                    <input class="file-input" type="file" accept=".svg,.png,image/svg+xml,image/png" data-mode="default" data-layer="foreground">
+                  </label>
+                  <button class="clear-layer" type="button" data-clear-mode="default" data-clear-layer="foreground" hidden>清除</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="mode-panel" id="darkPanel" role="tabpanel" hidden>
+            <p class="mode-note">Dark 默认继承 Default。只需上传需要替换的图层，背景和前景的有效素材仍保持必需。</p>
+            <div class="layer-list">
+              <div class="layer-card" data-card-mode="dark" data-card-layer="background">
+                <div class="layer-head">
+                  <strong>背景层</strong>
+                  <span class="requirement required">必需 · 可继承</span>
+                </div>
+                <p class="layer-meta">等待 Default 背景层</p>
+                <div class="layer-actions">
+                  <label class="layer-picker">
+                    <span>上传 Dark 覆盖</span>
+                    <input class="file-input" type="file" accept=".svg,.png,image/svg+xml,image/png" data-mode="dark" data-layer="background">
+                  </label>
+                  <button class="clear-layer" type="button" data-clear-mode="dark" data-clear-layer="background" hidden>恢复继承</button>
+                </div>
+              </div>
+
+              <div class="layer-card" data-card-mode="dark" data-card-layer="middle">
+                <div class="layer-head">
+                  <strong>中景层</strong>
+                  <span class="requirement">可选 · 可继承</span>
+                </div>
+                <p class="layer-meta">Default 未提供中景层</p>
+                <div class="layer-actions">
+                  <label class="layer-picker">
+                    <span>上传 Dark 覆盖</span>
+                    <input class="file-input" type="file" accept=".svg,.png,image/svg+xml,image/png" data-mode="dark" data-layer="middle">
+                  </label>
+                  <button class="clear-layer" type="button" data-clear-mode="dark" data-clear-layer="middle" hidden>恢复继承</button>
+                </div>
+              </div>
+
+              <div class="layer-card" data-card-mode="dark" data-card-layer="foreground">
+                <div class="layer-head">
+                  <strong>前景层</strong>
+                  <span class="requirement required">必需 · 可继承</span>
+                </div>
+                <p class="layer-meta">等待 Default 前景层</p>
+                <div class="layer-actions">
+                  <label class="layer-picker">
+                    <span>上传 Dark 覆盖</span>
+                    <input class="file-input" type="file" accept=".svg,.png,image/svg+xml,image/png" data-mode="dark" data-layer="foreground">
+                  </label>
+                  <button class="clear-layer" type="button" data-clear-mode="dark" data-clear-layer="foreground" hidden>恢复继承</button>
+                </div>
+              </div>
+            </div>
+          </section>
 
           <div class="control">
             <div class="control-row">
-              <label for="scale">缩放</label>
+              <label for="scale">整体缩放</label>
               <output id="scaleValue">100%</output>
             </div>
             <input id="scale" type="range" min="10" max="320" value="100">
@@ -467,53 +739,49 @@
 
           <div class="control">
             <div class="control-row">
-              <label for="rotation">旋转</label>
+              <label for="rotation">整体旋转</label>
               <output id="rotationValue">0°</output>
             </div>
             <input id="rotation" type="range" min="-180" max="180" value="0">
           </div>
 
           <div class="color-row">
-            <label for="backgroundColor">背景色</label>
+            <label for="backgroundColor">透明区域底色</label>
             <input id="backgroundColor" type="color" value="#f5f5f7">
           </div>
 
           <label class="switch-row">
-            <span>导出透明背景</span>
-            <input id="transparentBg" type="checkbox">
-          </label>
-
-          <label class="switch-row">
-            <span>预览圆角遮罩</span>
+            <span>预览遮罩轮廓</span>
             <input id="maskPreview" type="checkbox" checked>
           </label>
 
           <div class="actions">
-            <button class="button secondary" id="fitButton" type="button">适配画布</button>
-            <button class="button secondary" id="resetButton" type="button">重置位置</button>
-            <button class="button" id="downloadPng" type="button" disabled>下载当前平台 PNG</button>
-            <button class="button" id="downloadCurrent" type="button" disabled>导出当前平台 ZIP</button>
-            <button class="button" id="downloadAll" type="button" disabled>导出全部 ZIP</button>
+            <div class="button-row">
+              <button class="button secondary" id="fitButton" type="button">适配画布</button>
+              <button class="button secondary" id="resetButton" type="button">重置位置</button>
+            </div>
+            <button class="button secondary" id="downloadPng" type="button" disabled>下载当前预览 PNG</button>
+            <button class="button" id="downloadZip" type="button" disabled>下载完整图层 ZIP</button>
           </div>
 
-          <p class="status" id="status">等待上传图片。</p>
+          <p class="status" id="status" aria-live="polite">请上传 Default 背景层和前景层。</p>
         </div>
       </aside>
 
       <section class="panel stage-panel" aria-label="图标预览">
         <div class="platform-tabs" role="tablist" aria-label="选择平台">
-          <button class="platform-tab active" type="button" data-platform="ios" role="tab" aria-selected="true">iOS / macOS</button>
-          <button class="platform-tab" type="button" data-platform="tvos" role="tab" aria-selected="false">tvOS</button>
-          <button class="platform-tab" type="button" data-platform="watchos" role="tab" aria-selected="false">watchOS</button>
+          <button class="tab-button platform-tab active" type="button" data-platform="ios" role="tab" aria-selected="true">iOS / macOS</button>
+          <button class="tab-button platform-tab" type="button" data-platform="tvos" role="tab" aria-selected="false">tvOS</button>
+          <button class="tab-button platform-tab" type="button" data-platform="watchos" role="tab" aria-selected="false">watchOS</button>
         </div>
         <div class="stage-toolbar">
           <span id="stageSize">预览画布：1024 × 1024 px</span>
-          <span>拖动图片可调整位置</span>
+          <span class="mode-indicator" id="modeIndicator">Default mode</span>
         </div>
         <div class="stage-shell">
           <div class="stage-wrap">
-            <canvas id="previewCanvas" width="1024" height="1024" aria-label="图标预览"></canvas>
-            <div class="empty-state" id="emptyState">上传图片后会在这里显示预览辅助线。</div>
+            <canvas id="previewCanvas" width="1024" height="1024" aria-label="Default mode 图标预览"></canvas>
+            <div class="empty-state" id="emptyState">上传背景层和前景层后会在这里显示完整预览。</div>
           </div>
         </div>
       </section>
@@ -522,31 +790,237 @@
         <h2>规范与输出</h2>
         <div class="panel-body">
           <ul class="spec-list">
-            <li><b>Apple 基准</b><span id="specBase">iOS、iPadOS、macOS 的布局尺寸为 1024 × 1024 px 正方形。</span></li>
-            <li><b>遮罩</b><span id="specMask">系统会对 iOS、iPadOS、macOS 图标应用圆角矩形遮罩。</span></li>
-            <li><b>导出内容</b><span id="specExport">输出干净 PNG、iOS AppIcon.appiconset、macOS AppIcon.iconset 和 macOS AppIcon.appiconset。</span></li>
-            <li><b>色彩空间</b><span>浏览器导出为 PNG；建议源图使用 sRGB 或 Display P3。</span></li>
+            <li><b>图层输入</b><span>背景与前景必需，中景可选；支持 SVG 和 PNG。</span></li>
+            <li><b>Dark 模式</b><span>未上传的 Dark 图层自动继承 Default，对应模式可即时预览。</span></li>
+            <li><b>Apple 基准</b><span id="specBase">iOS、iPadOS、macOS 使用 1024 × 1024 px 正方形画布。</span></li>
+            <li><b>遮罩</b><span id="specMask">轮廓仅供构图预览，导出文件不包含遮罩。</span></li>
+            <li><b>ZIP 内容</b><span>独立图层、Default/Dark 合成 PNG、构图配置和 iOS AppIcon.appiconset。</span></li>
+            <li><b>最终交付</b><span>将独立图层导入 Icon Composer，并由它保存正式 .icon 文件。</span></li>
           </ul>
 
-          <p class="note">Apple 现在推荐使用 Icon Composer 创建分层图标。本工具适合快速生成扁平 PNG 套图和 Xcode 资产目录。</p>
-          <p class="note warning">透明背景可能不适合所有 App Store 场景；用于正式发布前请在 Xcode、模拟器和真机中检查。</p>
-
-          <h2 style="padding:18px 0 10px;">常用尺寸</h2>
+          <h2 class="subsection-title">当前平台</h2>
           <ul class="size-list" id="sizeList"></ul>
         </div>
       </aside>
     </section>
   </main>
 
-  <script>
+  <script id="icon-core">
+    (function initializeIconCore(root) {
+      const EPSILON = 1e-7;
+      const MODE_IDS = Object.freeze(['default', 'dark']);
+      const LAYER_IDS = Object.freeze(['background', 'middle', 'foreground']);
+
+      function radians(degrees) {
+        return degrees * Math.PI / 180;
+      }
+
+      function coverScaleForRotation(imageWidth, imageHeight, canvasWidth, canvasHeight, rotation) {
+        if ([imageWidth, imageHeight, canvasWidth, canvasHeight].some((value) => !Number.isFinite(value) || value <= 0)) {
+          throw new TypeError('Image and canvas dimensions must be positive finite numbers.');
+        }
+
+        const angle = radians(rotation);
+        const cosine = Math.abs(Math.cos(angle));
+        const sine = Math.abs(Math.sin(angle));
+        const widthScale = (canvasWidth * cosine + canvasHeight * sine) / imageWidth;
+        const heightScale = (canvasWidth * sine + canvasHeight * cosine) / imageHeight;
+        return Math.max(widthScale, heightScale);
+      }
+
+      function coverageMargins({
+        imageWidth,
+        imageHeight,
+        canvasWidth,
+        canvasHeight,
+        rotation,
+        imageScale,
+        offsetX = 0,
+        offsetY = 0
+      }) {
+        const angle = radians(rotation);
+        const cosine = Math.cos(angle);
+        const sine = Math.sin(angle);
+        const projectedOffsetX = cosine * offsetX + sine * offsetY;
+        const projectedOffsetY = -sine * offsetX + cosine * offsetY;
+        const requiredHalfWidth = (canvasWidth * Math.abs(cosine) + canvasHeight * Math.abs(sine)) / 2;
+        const requiredHalfHeight = (canvasWidth * Math.abs(sine) + canvasHeight * Math.abs(cosine)) / 2;
+
+        return {
+          horizontal: imageWidth * imageScale / 2 - requiredHalfWidth - Math.abs(projectedOffsetX),
+          vertical: imageHeight * imageScale / 2 - requiredHalfHeight - Math.abs(projectedOffsetY)
+        };
+      }
+
+      function sourceCropPercent(imageWidth, imageHeight, canvasWidth, canvasHeight) {
+        const scale = Math.max(canvasWidth / imageWidth, canvasHeight / imageHeight);
+        const visibleWidth = Math.min(imageWidth, canvasWidth / scale);
+        const visibleHeight = Math.min(imageHeight, canvasHeight / scale);
+        return Math.max(0, 1 - visibleWidth * visibleHeight / (imageWidth * imageHeight));
+      }
+
+      function sanitizeBaseName(fileName) {
+        const withoutExtension = String(fileName || '').replace(/\.[^.]+$/, '');
+        const normalized = withoutExtension
+          .normalize('NFKC')
+          .replace(/[\\/\u0000-\u001f\u007f]+/g, '-')
+          .replace(/\.{2,}/g, '.')
+          .replace(/^[-.\s]+|[-.\s]+$/g, '')
+          .slice(0, 80);
+        return normalized || 'app-icon';
+      }
+
+      function extensionForImage(file) {
+        const name = String(file?.name || '').toLowerCase();
+        const type = String(file?.type || '').toLowerCase();
+        if (type === 'image/svg+xml' || name.endsWith('.svg')) return 'svg';
+        if (type === 'image/png' || name.endsWith('.png')) return 'png';
+        return null;
+      }
+
+      function resolveLayer(sources, mode, layer) {
+        const direct = sources?.[mode]?.[layer] || null;
+        if (direct || mode === 'default') return direct;
+        return sources?.default?.[layer] || null;
+      }
+
+      function requiredLayersReady(sources) {
+        return Boolean(sources?.default?.background && sources?.default?.foreground);
+      }
+
+      function iosContentsJson() {
+        return {
+          images: [
+            {
+              filename: 'AppIcon-Default-1024.png',
+              idiom: 'universal',
+              platform: 'ios',
+              size: '1024x1024'
+            },
+            {
+              appearances: [
+                {
+                  appearance: 'luminosity',
+                  value: 'dark'
+                }
+              ],
+              filename: 'AppIcon-Dark-1024.png',
+              idiom: 'universal',
+              platform: 'ios',
+              size: '1024x1024'
+            }
+          ],
+          info: {
+            author: 'xcode',
+            version: 1
+          }
+        };
+      }
+
+      function pngUsesTransparency(bytes) {
+        const signature = [137, 80, 78, 71, 13, 10, 26, 10];
+        if (!(bytes instanceof Uint8Array) || bytes.length < 33 || signature.some((value, index) => bytes[index] !== value)) {
+          throw new TypeError('Invalid PNG data.');
+        }
+
+        const colorType = bytes[25];
+        if (colorType === 4 || colorType === 6) return true;
+
+        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        let offset = 8;
+        while (offset + 12 <= bytes.length) {
+          const length = view.getUint32(offset);
+          if (offset + 12 + length > bytes.length) {
+            throw new TypeError('Invalid PNG chunk length.');
+          }
+          const type = String.fromCharCode(bytes[offset + 4], bytes[offset + 5], bytes[offset + 6], bytes[offset + 7]);
+          if (type === 'tRNS') return true;
+          if (type === 'IDAT' || type === 'IEND') return false;
+          offset += 12 + length;
+        }
+
+        throw new TypeError('Incomplete PNG data.');
+      }
+
+      function assertPlatformRatios(platforms) {
+        const expectations = {
+          ios: [1, 1],
+          tvos: [5, 3],
+          watchos: [1, 1]
+        };
+
+        Object.entries(expectations).forEach(([id, [ratioWidth, ratioHeight]]) => {
+          const platform = platforms[id];
+          if (!platform || Math.abs(platform.width * ratioHeight - platform.height * ratioWidth) > EPSILON) {
+            throw new Error(`${id} canvas ratio is invalid.`);
+          }
+        });
+      }
+
+      const api = Object.freeze({
+        EPSILON,
+        LAYER_IDS,
+        MODE_IDS,
+        assertPlatformRatios,
+        coverageMargins,
+        coverScaleForRotation,
+        extensionForImage,
+        iosContentsJson,
+        pngUsesTransparency,
+        requiredLayersReady,
+        resolveLayer,
+        sanitizeBaseName,
+        sourceCropPercent
+      });
+
+      if (root) {
+        root.IconCore = api;
+      }
+    })(typeof window === 'object' ? window : null);
+  </script>
+
+  <script id="icon-app">
+    const {
+      EPSILON,
+      LAYER_IDS,
+      MODE_IDS,
+      assertPlatformRatios,
+      coverageMargins,
+      coverScaleForRotation,
+      extensionForImage,
+      iosContentsJson,
+      pngUsesTransparency,
+      requiredLayersReady,
+      resolveLayer,
+      sanitizeBaseName,
+      sourceCropPercent
+    } = window.IconCore;
+
+    function canvasContext(target, opaque = false) {
+      const context = target.getContext('2d', { alpha: !opaque, colorSpace: 'srgb' });
+      if (!context) {
+        throw new Error('当前浏览器无法创建 Canvas 2D 上下文。');
+      }
+      const attributes = context.getContextAttributes?.();
+      if (opaque && attributes?.alpha !== false) {
+        throw new Error('当前浏览器无法创建不透明 Canvas。');
+      }
+      if (attributes?.colorSpace && attributes.colorSpace !== 'srgb') {
+        throw new Error('当前浏览器无法使用 sRGB Canvas。');
+      }
+      return context;
+    }
+
     const canvas = document.getElementById('previewCanvas');
-    const ctx = canvas.getContext('2d');
-    const fileInput = document.getElementById('fileInput');
-    const dropZone = document.getElementById('dropZone');
+    const ctx = canvasContext(canvas, true);
+    const appearanceTabs = Array.from(document.querySelectorAll('.appearance-tab'));
+    const platformTabs = Array.from(document.querySelectorAll('.platform-tab'));
+    const modePanels = Array.from(document.querySelectorAll('.mode-panel'));
+    const fileInputs = Array.from(document.querySelectorAll('.file-input'));
+    const clearButtons = Array.from(document.querySelectorAll('.clear-layer'));
     const scaleInput = document.getElementById('scale');
     const rotationInput = document.getElementById('rotation');
     const backgroundColorInput = document.getElementById('backgroundColor');
-    const transparentBgInput = document.getElementById('transparentBg');
     const maskPreviewInput = document.getElementById('maskPreview');
     const scaleValue = document.getElementById('scaleValue');
     const rotationValue = document.getElementById('rotationValue');
@@ -554,105 +1028,68 @@
     const emptyState = document.getElementById('emptyState');
     const sizeList = document.getElementById('sizeList');
     const stageSize = document.getElementById('stageSize');
+    const modeIndicator = document.getElementById('modeIndicator');
     const specBase = document.getElementById('specBase');
     const specMask = document.getElementById('specMask');
-    const specExport = document.getElementById('specExport');
-    const platformTabs = Array.from(document.querySelectorAll('.platform-tab'));
-    const exportButtons = [
-      document.getElementById('downloadPng'),
-      document.getElementById('downloadCurrent'),
-      document.getElementById('downloadAll')
-    ];
+    const downloadPngButton = document.getElementById('downloadPng');
+    const downloadZipButton = document.getElementById('downloadZip');
+    const exportButtons = [downloadPngButton, downloadZipButton];
 
     const makeTransform = () => ({
-      fitScale: 1,
       scalePercent: 100,
       rotation: 0,
       offsetX: 0,
       offsetY: 0
     });
 
+    const makePlatformTransforms = () => ({
+      ios: makeTransform(),
+      tvos: makeTransform(),
+      watchos: makeTransform()
+    });
+
+    const makeLayerSlots = () => ({
+      background: null,
+      middle: null,
+      foreground: null
+    });
+
     const state = {
-      image: null,
-      fileName: 'app-icon',
+      modeId: 'default',
       platformId: 'ios',
-      transforms: {
-        ios: makeTransform(),
-        tvos: makeTransform(),
-        watchos: makeTransform()
+      fileName: 'app-icon',
+      sources: {
+        default: makeLayerSlots(),
+        dark: makeLayerSlots()
       },
+      transforms: {
+        default: makePlatformTransforms(),
+        dark: makePlatformTransforms()
+      },
+      backgroundColors: {
+        default: '#f5f5f7',
+        dark: '#1c1c1e'
+      },
+      compositeCache: {
+        default: null,
+        dark: null
+      },
+      exporting: false,
       dragging: false,
       lastX: 0,
       lastY: 0
     };
 
-    const macIconset = [
-      ['icon_16x16.png', 16],
-      ['icon_16x16@2x.png', 32],
-      ['icon_32x32.png', 32],
-      ['icon_32x32@2x.png', 64],
-      ['icon_128x128.png', 128],
-      ['icon_128x128@2x.png', 256],
-      ['icon_256x256.png', 256],
-      ['icon_256x256@2x.png', 512],
-      ['icon_512x512.png', 512],
-      ['icon_512x512@2x.png', 1024]
-    ];
-
-    const iosImages = [
-      { idiom: 'iphone', size: '20x20', scale: '2x', px: 40, name: 'Icon-App-20x20@2x.png' },
-      { idiom: 'iphone', size: '20x20', scale: '3x', px: 60, name: 'Icon-App-20x20@3x.png' },
-      { idiom: 'iphone', size: '29x29', scale: '2x', px: 58, name: 'Icon-App-29x29@2x.png' },
-      { idiom: 'iphone', size: '29x29', scale: '3x', px: 87, name: 'Icon-App-29x29@3x.png' },
-      { idiom: 'iphone', size: '40x40', scale: '2x', px: 80, name: 'Icon-App-40x40@2x.png' },
-      { idiom: 'iphone', size: '40x40', scale: '3x', px: 120, name: 'Icon-App-40x40@3x.png' },
-      { idiom: 'iphone', size: '60x60', scale: '2x', px: 120, name: 'Icon-App-60x60@2x.png' },
-      { idiom: 'iphone', size: '60x60', scale: '3x', px: 180, name: 'Icon-App-60x60@3x.png' },
-      { idiom: 'ipad', size: '20x20', scale: '1x', px: 20, name: 'Icon-App-20x20@1x.png' },
-      { idiom: 'ipad', size: '20x20', scale: '2x', px: 40, name: 'Icon-App-20x20@2x~ipad.png' },
-      { idiom: 'ipad', size: '29x29', scale: '1x', px: 29, name: 'Icon-App-29x29@1x.png' },
-      { idiom: 'ipad', size: '29x29', scale: '2x', px: 58, name: 'Icon-App-29x29@2x~ipad.png' },
-      { idiom: 'ipad', size: '40x40', scale: '1x', px: 40, name: 'Icon-App-40x40@1x.png' },
-      { idiom: 'ipad', size: '40x40', scale: '2x', px: 80, name: 'Icon-App-40x40@2x~ipad.png' },
-      { idiom: 'ipad', size: '76x76', scale: '1x', px: 76, name: 'Icon-App-76x76@1x.png' },
-      { idiom: 'ipad', size: '76x76', scale: '2x', px: 152, name: 'Icon-App-76x76@2x.png' },
-      { idiom: 'ipad', size: '83.5x83.5', scale: '2x', px: 167, name: 'Icon-App-83.5x83.5@2x.png' },
-      { idiom: 'ios-marketing', size: '1024x1024', scale: '1x', px: 1024, name: 'Icon-App-1024x1024@1x.png' }
-    ];
-
-    const tvosImages = [
-      { width: 800, height: 480, name: 'AppIcon-800x480.png' },
-      { width: 400, height: 240, name: 'AppIcon-400x240.png' }
-    ];
-
-    const watchosImages = [
-      { size: 1088, name: 'AppIcon-1088x1088.png' },
-      { size: 1024, name: 'AppIcon-1024x1024.png' },
-      { size: 216, name: 'AppIcon-216x216.png' },
-      { size: 196, name: 'AppIcon-196x196.png' },
-      { size: 172, name: 'AppIcon-172x172.png' },
-      { size: 100, name: 'AppIcon-100x100.png' },
-      { size: 92, name: 'AppIcon-92x92.png' },
-      { size: 88, name: 'AppIcon-88x88.png' },
-      { size: 80, name: 'AppIcon-80x80.png' },
-      { size: 58, name: 'AppIcon-58x58.png' },
-      { size: 55, name: 'AppIcon-55x55.png' },
-      { size: 48, name: 'AppIcon-48x48.png' }
-    ];
-
     const platforms = {
       ios: {
         id: 'ios',
-        label: 'iOS / macOS',
+        label: 'iOS-macOS',
         width: 1024,
         height: 1024,
         guide: 'square',
-        pngName: 'AppIcon-1024.png',
-        zipSuffix: 'ios-macos-icons',
-        sizeLabels: ['1024 base', 'iPhone 120/180', 'iPad 152/167', 'macOS 16-1024'],
-        specBase: 'iOS、iPadOS、macOS 的布局尺寸为 1024 × 1024 px 正方形。',
-        specMask: '系统会对 iOS、iPadOS、macOS 图标应用圆角矩形遮罩。',
-        specExport: '输出干净 PNG、iOS AppIcon.appiconset、macOS AppIcon.iconset 和 macOS AppIcon.appiconset。'
+        sizeLabels: ['1024 × 1024', '1:1 正方形', 'Default / Dark', '不透明 sRGB'],
+        specBase: 'iOS、iPadOS、macOS 使用 1024 × 1024 px 正方形画布。',
+        specMask: '系统应用圆角矩形遮罩；当前轮廓仅供预览。'
       },
       tvos: {
         id: 'tvos',
@@ -660,12 +1097,9 @@
         width: 800,
         height: 480,
         guide: 'tvos',
-        pngName: 'AppIcon-tvOS-800x480.png',
-        zipSuffix: 'tvos-icons',
-        sizeLabels: ['800 x 480 layout', '400 x 240', '5:3 rectangle', 'rounded mask preview'],
-        specBase: 'tvOS 的图标布局尺寸为 800 × 480 px 横向矩形。',
-        specMask: '系统会对 tvOS 图标应用横向圆角矩形遮罩，并可能在聚焦时裁切边缘。',
-        specExport: '输出 tvOS 基准图标 PNG 和同 5:3 比例的缩放 PNG。'
+        sizeLabels: ['800 × 480', '5:3 横向', '分层构图参考', '不透明 sRGB'],
+        specBase: 'tvOS 使用 800 × 480 px 横向画布；正方形源图会居中裁切。',
+        specMask: '系统可能在聚焦时裁切边缘；当前轮廓仅供构图预览。'
       },
       watchos: {
         id: 'watchos',
@@ -673,20 +1107,16 @@
         width: 1088,
         height: 1088,
         guide: 'watchos',
-        pngName: 'AppIcon-watchOS-1088.png',
-        zipSuffix: 'watchos-icons',
-        sizeLabels: ['1088 base', '1024 marketing', '216/196/172', '100 and smaller'],
-        specBase: 'watchOS 的图标布局尺寸为 1088 × 1088 px 正方形。',
-        specMask: '系统会对 watchOS 图标应用圆形遮罩，主要内容需要居中。',
-        specExport: '输出 watchOS 基准 PNG 和常用缩放尺寸 PNG。'
+        sizeLabels: ['1088 × 1088', '1:1 正方形', '圆形预览', '不透明 sRGB'],
+        specBase: 'watchOS 使用 1088 × 1088 px 正方形设计画布。',
+        specMask: '系统应用圆形遮罩；当前轮廓仅供预览。'
       }
     };
 
-    function updateSizeList() {
-      const labels = currentPlatform().sizeLabels;
-      sizeList.innerHTML = labels.map((label) => `
-        <li class="size-pill"><i class="size-dot"></i><span>${label}</span></li>
-      `).join('');
+    assertPlatformRatios(platforms);
+
+    function currentModeLabel() {
+      return state.modeId === 'dark' ? 'Dark' : 'Default';
     }
 
     function currentPlatform() {
@@ -694,7 +1124,94 @@
     }
 
     function currentTransform() {
-      return state.transforms[state.platformId];
+      return state.transforms[state.modeId][state.platformId];
+    }
+
+    function effectiveLayer(mode, layer) {
+      return resolveLayer(state.sources, mode, layer);
+    }
+
+    function hasAnyEffectiveLayer(mode) {
+      return LAYER_IDS.some((layer) => effectiveLayer(mode, layer));
+    }
+
+    function isCompositionReady() {
+      return requiredLayersReady(state.sources);
+    }
+
+    function sourceArtboard() {
+      const preferred = state.sources.default.background || effectiveLayer(state.modeId, 'background');
+      if (preferred) {
+        return {
+          width: preferred.image.naturalWidth,
+          height: preferred.image.naturalHeight
+        };
+      }
+
+      for (const mode of MODE_IDS) {
+        for (const layer of LAYER_IDS) {
+          const source = effectiveLayer(mode, layer);
+          if (source) {
+            return {
+              width: source.image.naturalWidth,
+              height: source.image.naturalHeight
+            };
+          }
+        }
+      }
+
+      return {
+        width: currentPlatform().width,
+        height: currentPlatform().height
+      };
+    }
+
+    function useHighQualitySmoothing(context) {
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = 'high';
+    }
+
+    function invalidateComposites(mode) {
+      state.compositeCache[mode] = null;
+      if (mode === 'default') {
+        state.compositeCache.dark = null;
+      }
+    }
+
+    function buildComposite(mode) {
+      if (state.compositeCache[mode]) {
+        return state.compositeCache[mode];
+      }
+
+      const artboard = sourceArtboard();
+      const output = document.createElement('canvas');
+      output.width = artboard.width;
+      output.height = artboard.height;
+      const outputContext = canvasContext(output, true);
+      useHighQualitySmoothing(outputContext);
+      outputContext.fillStyle = state.backgroundColors[mode];
+      outputContext.fillRect(0, 0, output.width, output.height);
+
+      LAYER_IDS.forEach((layer) => {
+        const source = effectiveLayer(mode, layer);
+        if (source) {
+          outputContext.drawImage(source.image, 0, 0, output.width, output.height);
+        }
+      });
+
+      state.compositeCache[mode] = output;
+      return output;
+    }
+
+    function fittedCompositeScale(platform, mode, transform) {
+      const artboard = sourceArtboard();
+      return coverScaleForRotation(
+        artboard.width,
+        artboard.height,
+        platform.width,
+        platform.height,
+        transform.rotation
+      ) * transform.scalePercent / 100;
     }
 
     function drawRoundedRect(context, x, y, width, height, radius) {
@@ -708,140 +1225,232 @@
       context.closePath();
     }
 
-    function useHighQualitySmoothing(context) {
-      context.imageSmoothingEnabled = true;
-      context.imageSmoothingQuality = 'high';
-    }
-
-    function renderIcon(width = currentPlatform().width, height = currentPlatform().height, withGuides = false, platform = currentPlatform()) {
-      const output = document.createElement('canvas');
-      output.width = width;
-      output.height = height;
-      const out = output.getContext('2d');
-      const transform = state.transforms[platform.id];
-      const ratioX = width / platform.width;
-      const ratioY = height / platform.height;
-      const ratio = Math.min(ratioX, ratioY);
-      useHighQualitySmoothing(out);
-
-      out.clearRect(0, 0, width, height);
-      if (!transparentBgInput.checked) {
-        out.fillStyle = backgroundColorInput.value;
-        out.fillRect(0, 0, width, height);
-      }
-
-      if (state.image) {
-        out.save();
-        out.translate(width / 2 + transform.offsetX * ratioX, height / 2 + transform.offsetY * ratioY);
-        out.rotate(transform.rotation * Math.PI / 180);
-        const imageScale = transform.fitScale * (transform.scalePercent / 100) * ratio;
-        out.scale(imageScale, imageScale);
-        out.drawImage(state.image, -state.image.naturalWidth / 2, -state.image.naturalHeight / 2);
-        out.restore();
-      }
-
-      if (withGuides) {
-        drawGuides(out, width, height, platform);
-      }
-
-      return output;
-    }
-
-    function resizeCanvasHighQuality(sourceCanvas, targetWidth, targetHeight = targetWidth) {
-      if (sourceCanvas.width === targetWidth && sourceCanvas.height === targetHeight) {
-        return sourceCanvas;
-      }
-
-      let current = sourceCanvas;
-      while (current.width / 2 > targetWidth && current.height / 2 > targetHeight) {
-        const nextWidth = Math.max(targetWidth, Math.floor(current.width / 2));
-        const nextHeight = Math.max(targetHeight, Math.floor(current.height / 2));
-        const next = document.createElement('canvas');
-        next.width = nextWidth;
-        next.height = nextHeight;
-        const nextContext = next.getContext('2d');
-        useHighQualitySmoothing(nextContext);
-        nextContext.drawImage(current, 0, 0, nextWidth, nextHeight);
-        current = next;
-      }
-
-      if (current.width === targetWidth && current.height === targetHeight) {
-        return current;
-      }
-
-      const output = document.createElement('canvas');
-      output.width = targetWidth;
-      output.height = targetHeight;
-      const out = output.getContext('2d');
-      useHighQualitySmoothing(out);
-      out.drawImage(current, 0, 0, targetWidth, targetHeight);
-      return output;
-    }
-
-    function drawGuides(out, width, height, platform) {
+    function drawGuides(context, width, height, platform) {
       const centerX = width / 2;
       const centerY = height / 2;
       const minSide = Math.min(width, height);
-      const guideColor = 'rgba(0, 0, 0, 0.78)';
       const gridColumns = platform.guide === 'tvos' ? 14 : 8;
-      const gridRows = platform.guide === 'tvos' ? 8 : 8;
+      const gridRows = 8;
       const stepX = width / gridColumns;
       const stepY = height / gridRows;
 
-      out.save();
-      out.strokeStyle = guideColor;
-      out.lineWidth = Math.max(2, minSide / 512);
+      context.save();
+      context.strokeStyle = 'rgba(0, 0, 0, 0.76)';
+      context.lineWidth = Math.max(2, minSide / 512);
 
       for (let i = 1; i < gridColumns; i += 1) {
-        out.beginPath();
-        out.moveTo(i * stepX, 0);
-        out.lineTo(i * stepX, height);
-        out.stroke();
+        context.beginPath();
+        context.moveTo(i * stepX, 0);
+        context.lineTo(i * stepX, height);
+        context.stroke();
       }
 
       for (let i = 1; i < gridRows; i += 1) {
-        out.beginPath();
-        out.moveTo(0, i * stepY);
-        out.lineTo(width, i * stepY);
-        out.stroke();
+        context.beginPath();
+        context.moveTo(0, i * stepY);
+        context.lineTo(width, i * stepY);
+        context.stroke();
       }
 
-      out.beginPath();
-      out.moveTo(centerX, centerY);
-      out.lineTo(0, 0);
-      out.moveTo(centerX, centerY);
-      out.lineTo(width, 0);
-      out.moveTo(centerX, centerY);
-      out.lineTo(width, height);
-      out.moveTo(centerX, centerY);
-      out.lineTo(0, height);
-      out.stroke();
+      context.beginPath();
+      context.moveTo(centerX, centerY);
+      context.lineTo(0, 0);
+      context.moveTo(centerX, centerY);
+      context.lineTo(width, 0);
+      context.moveTo(centerX, centerY);
+      context.lineTo(width, height);
+      context.moveTo(centerX, centerY);
+      context.lineTo(0, height);
+      context.stroke();
 
-      const circleDiameters = platform.guide === 'tvos' ? [0.84, 0.52, 0.24] : [0.8, 0.5, 0.2];
-      circleDiameters.forEach((diameter) => {
-        out.beginPath();
-        out.arc(centerX, centerY, minSide * diameter / 2, 0, Math.PI * 2);
-        out.stroke();
+      [0.8, 0.5, 0.2].forEach((diameter) => {
+        context.beginPath();
+        context.arc(centerX, centerY, minSide * diameter / 2, 0, Math.PI * 2);
+        context.stroke();
       });
 
       if (maskPreviewInput.checked) {
-        out.save();
+        context.save();
         if (platform.guide === 'watchos') {
-          out.beginPath();
-          out.arc(centerX, centerY, minSide / 2, 0, Math.PI * 2);
-          out.closePath();
+          context.beginPath();
+          context.arc(centerX, centerY, minSide / 2, 0, Math.PI * 2);
+          context.closePath();
         } else {
-          const radius = platform.guide === 'tvos' ? minSide * 0.08 : minSide * 0.2237;
-          drawRoundedRect(out, 0, 0, width, height, radius);
+          drawRoundedRect(context, 0, 0, width, height, platform.guide === 'tvos' ? minSide * 0.08 : minSide * 0.2237);
         }
-        out.strokeStyle = 'rgba(17, 24, 39, 0.58)';
-        out.setLineDash([minSide * 0.018, minSide * 0.012]);
-        out.lineWidth = Math.max(2, minSide / 256);
-        out.stroke();
-        out.restore();
+        context.strokeStyle = 'rgba(17, 24, 39, 0.58)';
+        context.setLineDash([minSide * 0.018, minSide * 0.012]);
+        context.lineWidth = Math.max(2, minSide / 256);
+        context.stroke();
+        context.restore();
       }
 
-      out.restore();
+      context.restore();
+    }
+
+    function renderIcon({
+      mode = state.modeId,
+      platform = currentPlatform(),
+      width = platform.width,
+      height = platform.height,
+      withGuides = false
+    } = {}) {
+      const output = document.createElement('canvas');
+      output.width = width;
+      output.height = height;
+      const outputContext = canvasContext(output, true);
+      const transform = state.transforms[mode][platform.id];
+      const ratioX = width / platform.width;
+      const ratioY = height / platform.height;
+      const ratio = Math.min(ratioX, ratioY);
+      useHighQualitySmoothing(outputContext);
+      outputContext.fillStyle = state.backgroundColors[mode];
+      outputContext.fillRect(0, 0, width, height);
+
+      if (hasAnyEffectiveLayer(mode)) {
+        const source = buildComposite(mode);
+        outputContext.save();
+        outputContext.translate(width / 2 + transform.offsetX * ratioX, height / 2 + transform.offsetY * ratioY);
+        outputContext.rotate(transform.rotation * Math.PI / 180);
+        const imageScale = fittedCompositeScale(platform, mode, transform) * ratio;
+        outputContext.scale(imageScale, imageScale);
+        outputContext.drawImage(source, -source.width / 2, -source.height / 2);
+        outputContext.restore();
+      }
+
+      if (withGuides) {
+        drawGuides(outputContext, width, height, platform);
+      }
+
+      return output;
+    }
+
+    function setStatus(message, tone = 'info') {
+      statusEl.textContent = message;
+      statusEl.dataset.tone = tone;
+    }
+
+    function updateLayerCards() {
+      document.querySelectorAll('.layer-card').forEach((card) => {
+        const mode = card.dataset.cardMode;
+        const layer = card.dataset.cardLayer;
+        const direct = state.sources[mode][layer];
+        const inherited = mode === 'dark' && !direct ? state.sources.default[layer] : null;
+        const meta = card.querySelector('.layer-meta');
+        const clearButton = card.querySelector('.clear-layer');
+
+        card.classList.toggle('has-file', Boolean(direct));
+        card.classList.toggle('inherited', Boolean(inherited));
+        clearButton.hidden = !direct;
+
+        if (direct) {
+          meta.textContent = `${direct.file.name} · ${direct.image.naturalWidth} × ${direct.image.naturalHeight}`;
+        } else if (inherited) {
+          meta.textContent = `继承 Default · ${inherited.file.name}`;
+        } else if (mode === 'dark') {
+          meta.textContent = layer === 'middle' ? 'Default 未提供中景层' : `等待 Default ${layer === 'background' ? '背景' : '前景'}层`;
+        } else {
+          meta.textContent = '未上传';
+        }
+      });
+    }
+
+    function updateSizeList() {
+      sizeList.innerHTML = currentPlatform().sizeLabels.map((label) => `
+        <li class="size-pill"><i class="size-dot"></i><span>${label}</span></li>
+      `).join('');
+    }
+
+    function updateTabs() {
+      appearanceTabs.forEach((tab) => {
+        const active = tab.dataset.mode === state.modeId;
+        tab.classList.toggle('active', active);
+        tab.setAttribute('aria-selected', String(active));
+        tab.tabIndex = active ? 0 : -1;
+      });
+
+      modePanels.forEach((panel) => {
+        panel.hidden = panel.id !== `${state.modeId}Panel`;
+      });
+
+      platformTabs.forEach((tab) => {
+        const active = tab.dataset.platform === state.platformId;
+        tab.classList.toggle('active', active);
+        tab.setAttribute('aria-selected', String(active));
+        tab.tabIndex = active ? 0 : -1;
+      });
+    }
+
+    function updateSourceStatus() {
+      const missing = [];
+      if (!state.sources.default.background) missing.push('背景层');
+      if (!state.sources.default.foreground) missing.push('前景层');
+
+      if (missing.length) {
+        setStatus(`Default 缺少${missing.join('、')}，暂不能导出。`, 'warning');
+        return;
+      }
+
+      const platform = currentPlatform();
+      const mode = state.modeId;
+      const transform = currentTransform();
+      const artboard = sourceArtboard();
+      const imageScale = fittedCompositeScale(platform, mode, transform);
+      const baseScale = coverScaleForRotation(
+        artboard.width,
+        artboard.height,
+        platform.width,
+        platform.height,
+        transform.rotation
+      );
+      const margins = coverageMargins({
+        imageWidth: artboard.width,
+        imageHeight: artboard.height,
+        canvasWidth: platform.width,
+        canvasHeight: platform.height,
+        rotation: transform.rotation,
+        imageScale,
+        offsetX: transform.offsetX,
+        offsetY: transform.offsetY
+      });
+      const cropPercent = sourceCropPercent(
+        artboard.width,
+        artboard.height,
+        platform.width,
+        platform.height
+      );
+      const effectiveSources = LAYER_IDS.map((layer) => effectiveLayer(mode, layer)).filter(Boolean);
+      const mismatched = effectiveSources.some((source) => (
+        source.image.naturalWidth !== artboard.width || source.image.naturalHeight !== artboard.height
+      ));
+      const warnings = [];
+
+      if (mismatched) {
+        warnings.push('有效图层尺寸不一致，预览已按背景画布对齐');
+      }
+      if (baseScale > 1 + EPSILON) {
+        warnings.push(`当前平台需放大 ${Math.round((baseScale - 1) * 100)}%`);
+      }
+      if (cropPercent >= 0.1) {
+        warnings.push(`当前平台会裁掉约 ${Math.round(cropPercent * 100)}% 源画布`);
+      }
+      if (margins.horizontal < -EPSILON || margins.vertical < -EPSILON) {
+        warnings.push('当前缩放或位置未覆盖整个画布');
+      }
+
+      const inheritedCount = mode === 'dark'
+        ? LAYER_IDS.filter((layer) => !state.sources.dark[layer] && state.sources.default[layer]).length
+        : 0;
+      const readyMessage = mode === 'dark' && inheritedCount
+        ? `Dark 有 ${inheritedCount} 个图层继承 Default。`
+        : `${currentModeLabel()} 图层已就绪。`;
+      setStatus(warnings.length ? `${readyMessage}${warnings.join('；')}。` : `${readyMessage}当前构图覆盖完整。`, warnings.length ? 'warning' : 'success');
+    }
+
+    function updateExportButtons() {
+      exportButtons.forEach((button) => {
+        button.disabled = !isCompositionReady() || state.exporting;
+      });
     }
 
     function redraw() {
@@ -850,32 +1459,92 @@
       canvas.width = platform.width;
       canvas.height = platform.height;
       canvas.style.aspectRatio = `${platform.width} / ${platform.height}`;
-      canvas.style.borderRadius = platform.guide === 'watchos' ? '50%' : platform.guide === 'tvos' ? '7%' : '22.37%';
+      canvas.style.borderRadius = maskPreviewInput.checked
+        ? platform.guide === 'watchos' ? '50%' : platform.guide === 'tvos' ? '7%' : '22.37%'
+        : '0';
       canvas.style.width = platform.guide === 'tvos' ? 'min(100%, 92vh)' : 'min(100%, 74vh)';
+      canvas.setAttribute('aria-label', `${currentModeLabel()} mode ${platform.label} 图标预览`);
       stageSize.textContent = `预览画布：${platform.width} × ${platform.height} px`;
+      modeIndicator.textContent = `${currentModeLabel()} mode`;
+      modeIndicator.classList.toggle('dark', state.modeId === 'dark');
       specBase.textContent = platform.specBase;
       specMask.textContent = platform.specMask;
-      specExport.textContent = platform.specExport;
-      document.getElementById('downloadPng').textContent = `下载 ${platform.label} PNG`;
-      document.getElementById('downloadCurrent').textContent = `导出 ${platform.label} ZIP`;
-      scaleValue.textContent = `${transform.scalePercent}%`;
-      rotationValue.textContent = `${transform.rotation}°`;
+      backgroundColorInput.value = state.backgroundColors[state.modeId];
       scaleInput.value = transform.scalePercent;
       rotationInput.value = transform.rotation;
-      platformTabs.forEach((tab) => {
-        const active = tab.dataset.platform === state.platformId;
-        tab.classList.toggle('active', active);
-        tab.setAttribute('aria-selected', String(active));
-      });
+      scaleValue.textContent = `${transform.scalePercent}%`;
+      rotationValue.textContent = `${transform.rotation}°`;
+      downloadPngButton.textContent = `下载 ${currentModeLabel()} ${platform.label} PNG`;
+
+      updateTabs();
+      updateLayerCards();
       updateSizeList();
-      const preview = renderIcon(platform.width, platform.height, true, platform);
+
+      const preview = renderIcon({ mode: state.modeId, platform, withGuides: true });
       useHighQualitySmoothing(ctx);
       ctx.clearRect(0, 0, platform.width, platform.height);
       ctx.drawImage(preview, 0, 0);
-      emptyState.hidden = Boolean(state.image);
-      exportButtons.forEach((button) => {
-        button.disabled = !state.image;
-      });
+
+      const hasLayers = hasAnyEffectiveLayer(state.modeId);
+      emptyState.hidden = hasLayers;
+      if (!hasLayers) {
+        emptyState.textContent = state.modeId === 'dark'
+          ? 'Dark 会继承 Default；请先上传 Default 背景层和前景层。'
+          : '上传背景层和前景层后会在这里显示完整预览。';
+      }
+
+      updateExportButtons();
+      if (!state.exporting) updateSourceStatus();
+    }
+
+    function isSupportedLayerFile(file) {
+      return Boolean(file && extensionForImage(file));
+    }
+
+    function loadLayerFile(mode, layer, file) {
+      if (!isSupportedLayerFile(file)) {
+        setStatus('仅支持 SVG 或 PNG 图层。', 'warning');
+        return;
+      }
+
+      const objectUrl = URL.createObjectURL(file);
+      const image = new Image();
+      image.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        state.sources[mode][layer] = {
+          file,
+          image,
+          extension: extensionForImage(file)
+        };
+        if (mode === 'default' && layer === 'background') {
+          state.fileName = sanitizeBaseName(file.name);
+          MODE_IDS.forEach((modeId) => {
+            Object.keys(platforms).forEach((platformId) => {
+              state.transforms[modeId][platformId] = makeTransform();
+            });
+          });
+        }
+        invalidateComposites(mode);
+        redraw();
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        setStatus('图层读取失败，请确认文件是有效的 SVG 或 PNG。', 'warning');
+      };
+      image.src = objectUrl;
+    }
+
+    function clearLayer(mode, layer) {
+      state.sources[mode][layer] = null;
+      const input = document.querySelector(`.file-input[data-mode="${mode}"][data-layer="${layer}"]`);
+      if (input) input.value = '';
+      invalidateComposites(mode);
+      redraw();
+    }
+
+    function fitCurrent() {
+      state.transforms[state.modeId][state.platformId] = makeTransform();
+      redraw();
     }
 
     function resetPosition() {
@@ -885,175 +1554,50 @@
       redraw();
     }
 
-    function fitPlatform(platformId) {
-      if (!state.image) return;
-      const platform = platforms[platformId];
-      const transform = state.transforms[platformId];
-      transform.fitScale = Math.max(platform.width / state.image.naturalWidth, platform.height / state.image.naturalHeight);
-      transform.scalePercent = 100;
-      transform.rotation = 0;
-      transform.offsetX = 0;
-      transform.offsetY = 0;
-    }
-
-    function fitImage() {
-      fitPlatform(state.platformId);
-      redraw();
-    }
-
-    function loadFile(file) {
-      if (!file || !file.type.startsWith('image/')) {
-        statusEl.textContent = '请选择图片文件。';
-        return;
-      }
-
-      const url = URL.createObjectURL(file);
-      const image = new Image();
-      image.onload = () => {
-        URL.revokeObjectURL(url);
-        state.image = image;
-        state.fileName = file.name.replace(/\.[^.]+$/, '') || 'app-icon';
-        Object.keys(platforms).forEach(fitPlatform);
-        redraw();
-        statusEl.textContent = `已载入 ${file.name}，原图 ${image.naturalWidth} × ${image.naturalHeight}px。`;
-      };
-      image.onerror = () => {
-        URL.revokeObjectURL(url);
-        statusEl.textContent = '图片读取失败，请换一个文件重试。';
-      };
-      image.src = url;
-    }
-
     function canvasPoint(event) {
       const rect = canvas.getBoundingClientRect();
-      const clientX = event.clientX ?? event.touches?.[0]?.clientX;
-      const clientY = event.clientY ?? event.touches?.[0]?.clientY;
       const platform = currentPlatform();
       return {
-        x: (clientX - rect.left) * platform.width / rect.width,
-        y: (clientY - rect.top) * platform.height / rect.height
+        x: (event.clientX - rect.left) * platform.width / rect.width,
+        y: (event.clientY - rect.top) * platform.height / rect.height
       };
     }
 
     function canvasToBlob(sourceCanvas) {
-      return new Promise((resolve) => sourceCanvas.toBlob(resolve, 'image/png'));
+      return new Promise((resolve, reject) => {
+        sourceCanvas.toBlob(async (blob) => {
+          if (!blob) {
+            reject(new Error('浏览器无法编码 PNG。'));
+            return;
+          }
+
+          try {
+            const bytes = new Uint8Array(await blob.arrayBuffer());
+            if (pngUsesTransparency(bytes)) {
+              reject(new Error('浏览器生成的 PNG 含透明通道，已阻止导出。'));
+              return;
+            }
+            resolve(blob);
+          } catch (error) {
+            reject(error);
+          }
+        }, 'image/png');
+      });
     }
 
-    function textBlob(text) {
-      return new Blob([text], { type: 'application/json;charset=utf-8' });
+    function textBlob(text, type = 'application/json;charset=utf-8') {
+      return new Blob([text], { type });
     }
 
     function downloadBlob(blob, filename) {
-      const url = URL.createObjectURL(blob);
+      const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = url;
+      link.href = objectUrl;
       link.download = filename;
       document.body.appendChild(link);
       link.click();
       link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1500);
-    }
-
-    async function pngEntry(path, width, height = width, masterCanvas = renderIcon(currentPlatform().width, currentPlatform().height, false, currentPlatform())) {
-      const icon = resizeCanvasHighQuality(masterCanvas, width, height);
-      return { path, blob: await canvasToBlob(icon) };
-    }
-
-    function iosContentsJson() {
-      return {
-        images: iosImages.map((item) => ({
-          size: item.size,
-          idiom: item.idiom,
-          filename: item.name,
-          scale: item.scale
-        })),
-        info: {
-          version: 1,
-          author: 'xcode'
-        }
-      };
-    }
-
-    function macContentsJson() {
-      return {
-        images: [
-          { size: '16x16', idiom: 'mac', filename: 'icon_16x16.png', scale: '1x' },
-          { size: '16x16', idiom: 'mac', filename: 'icon_16x16@2x.png', scale: '2x' },
-          { size: '32x32', idiom: 'mac', filename: 'icon_32x32.png', scale: '1x' },
-          { size: '32x32', idiom: 'mac', filename: 'icon_32x32@2x.png', scale: '2x' },
-          { size: '128x128', idiom: 'mac', filename: 'icon_128x128.png', scale: '1x' },
-          { size: '128x128', idiom: 'mac', filename: 'icon_128x128@2x.png', scale: '2x' },
-          { size: '256x256', idiom: 'mac', filename: 'icon_256x256.png', scale: '1x' },
-          { size: '256x256', idiom: 'mac', filename: 'icon_256x256@2x.png', scale: '2x' },
-          { size: '512x512', idiom: 'mac', filename: 'icon_512x512.png', scale: '1x' },
-          { size: '512x512', idiom: 'mac', filename: 'icon_512x512@2x.png', scale: '2x' }
-        ],
-        info: {
-          version: 1,
-          author: 'xcode'
-        }
-      };
-    }
-
-    async function makeIosEntries(prefix = '', masterCanvas = renderIcon(platforms.ios.width, platforms.ios.height, false, platforms.ios)) {
-      const entries = [];
-      for (const item of iosImages) {
-        entries.push(await pngEntry(`${prefix}iOS/AppIcon.appiconset/${item.name}`, item.px, item.px, masterCanvas));
-      }
-      entries.push({
-        path: `${prefix}iOS/AppIcon.appiconset/Contents.json`,
-        blob: textBlob(JSON.stringify(iosContentsJson(), null, 2))
-      });
-      return entries;
-    }
-
-    async function makeMacEntries(prefix = '', masterCanvas = renderIcon(platforms.ios.width, platforms.ios.height, false, platforms.ios)) {
-      const entries = [];
-      for (const [name, size] of macIconset) {
-        entries.push(await pngEntry(`${prefix}macOS/AppIcon.iconset/${name}`, size, size, masterCanvas));
-        entries.push(await pngEntry(`${prefix}macOS/AppIcon.appiconset/${name}`, size, size, masterCanvas));
-      }
-      entries.push({
-        path: `${prefix}macOS/AppIcon.appiconset/Contents.json`,
-        blob: textBlob(JSON.stringify(macContentsJson(), null, 2))
-      });
-      return entries;
-    }
-
-    async function makeTvEntries(prefix = '', masterCanvas = renderIcon(platforms.tvos.width, platforms.tvos.height, false, platforms.tvos)) {
-      const entries = [];
-      for (const item of tvosImages) {
-        entries.push(await pngEntry(`${prefix}tvOS/${item.name}`, item.width, item.height, masterCanvas));
-      }
-      entries.push({
-        path: `${prefix}tvOS/Contents.json`,
-        blob: textBlob(JSON.stringify({
-          images: tvosImages.map((item) => ({
-            filename: item.name,
-            size: `${item.width}x${item.height}`
-          })),
-          info: { version: 1, author: 'icon-generator' }
-        }, null, 2))
-      });
-      return entries;
-    }
-
-    async function makeWatchEntries(prefix = '', masterCanvas = renderIcon(platforms.watchos.width, platforms.watchos.height, false, platforms.watchos)) {
-      const entries = [];
-      for (const item of watchosImages) {
-        entries.push(await pngEntry(`${prefix}watchOS/${item.name}`, item.size, item.size, masterCanvas));
-      }
-      entries.push({
-        path: `${prefix}watchOS/Contents.json`,
-        blob: textBlob(JSON.stringify({
-          images: watchosImages.map((item) => ({
-            filename: item.name,
-            size: `${item.size}x${item.size}`
-          })),
-          info: { version: 1, author: 'icon-generator' }
-        }, null, 2))
-      });
-      return entries;
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
     }
 
     function crc32(bytes) {
@@ -1134,71 +1678,182 @@
         ...uint32(offset),
         ...uint16(0)
       ]);
-
       return new Blob([...chunks, ...central, end], { type: 'application/zip' });
     }
 
-    function renderPlatformMaster(platformId) {
-      const platform = platforms[platformId];
-      return renderIcon(platform.width, platform.height, false, platform);
+    function compositionManifest() {
+      const artboard = sourceArtboard();
+      const modes = {};
+
+      MODE_IDS.forEach((mode) => {
+        modes[mode] = {
+          backgroundColor: state.backgroundColors[mode],
+          layers: {}
+        };
+        LAYER_IDS.forEach((layer) => {
+          const direct = state.sources[mode][layer];
+          const effective = effectiveLayer(mode, layer);
+          modes[mode].layers[layer] = effective ? {
+            sourceFile: effective.file.name,
+            exportedAs: `${String(LAYER_IDS.indexOf(layer) + 1).padStart(2, '0')}-${layer}.${effective.extension}`,
+            inheritedFrom: mode === 'dark' && !direct ? 'default' : null,
+            width: effective.image.naturalWidth,
+            height: effective.image.naturalHeight
+          } : null;
+        });
+      });
+
+      return {
+        formatVersion: 1,
+        artboard,
+        modes,
+        platformTransforms: state.transforms,
+        note: 'Import the independent SVG or PNG layers into Apple Icon Composer, then save the final .icon file.'
+      };
     }
 
-    async function makePlatformEntries(platformId, prefix = '') {
-      if (platformId === 'ios') {
-        const masterCanvas = renderPlatformMaster('ios');
-        return [
-          { path: `${prefix}iOS-macOS/AppIcon-1024.png`, blob: await canvasToBlob(masterCanvas) },
-          ...(await makeIosEntries(prefix, masterCanvas)),
-          ...(await makeMacEntries(prefix, masterCanvas))
+    function layerEntries(prefix) {
+      const entries = [];
+      MODE_IDS.forEach((mode) => {
+        LAYER_IDS.forEach((layer, index) => {
+          const source = effectiveLayer(mode, layer);
+          if (!source) return;
+          const number = String(index + 1).padStart(2, '0');
+          const modeName = mode === 'dark' ? 'Dark' : 'Default';
+          entries.push({
+            path: `${prefix}Layers/${modeName}/${number}-${layer}.${source.extension}`,
+            blob: source.file
+          });
+        });
+      });
+      return entries;
+    }
+
+    async function previewEntries(prefix) {
+      const entries = [];
+      for (const platform of Object.values(platforms)) {
+        for (const mode of MODE_IDS) {
+          const modeName = mode === 'dark' ? 'Dark' : 'Default';
+          const preview = renderIcon({ mode, platform });
+          entries.push({
+            path: `${prefix}Previews/${platform.label}/AppIcon-${modeName}-${platform.width}x${platform.height}.png`,
+            blob: await canvasToBlob(preview)
+          });
+        }
+      }
+      return entries;
+    }
+
+    async function xcodeEntries(prefix) {
+      const ios = platforms.ios;
+      const defaultIcon = renderIcon({ mode: 'default', platform: ios });
+      const darkIcon = renderIcon({ mode: 'dark', platform: ios });
+      const appIconPrefix = `${prefix}Xcode/iOS/AppIcon.appiconset/`;
+      return [
+        {
+          path: `${appIconPrefix}AppIcon-Default-1024.png`,
+          blob: await canvasToBlob(defaultIcon)
+        },
+        {
+          path: `${appIconPrefix}AppIcon-Dark-1024.png`,
+          blob: await canvasToBlob(darkIcon)
+        },
+        {
+          path: `${appIconPrefix}Contents.json`,
+          blob: textBlob(JSON.stringify(iosContentsJson(), null, 2))
+        }
+      ];
+    }
+
+    async function exportZip() {
+      if (!isCompositionReady() || state.exporting) return;
+      state.exporting = true;
+      updateExportButtons();
+      setStatus('正在生成图层和预览 ZIP...');
+
+      try {
+        const prefix = `${state.fileName}-apple-icon/`;
+        const readme = [
+          'Apple App Icon 图层包',
+          '',
+          'Layers：Default 与 Dark 的独立 SVG/PNG 图层；Dark 未覆盖的图层已复制 Default 素材。',
+          'Previews：两个模式在 iOS/macOS、tvOS、watchOS 画布上的不透明 sRGB 合成 PNG。',
+          'Xcode/iOS：传统 Asset Catalog 使用的 Default/Dark AppIcon.appiconset。',
+          'composition.json：图层来源、继承关系、画布和预览变换。',
+          '',
+          '如需最新 Liquid Glass .icon 文件，请将 Layers 中的独立素材导入 Apple Icon Composer 后保存。'
+        ].join('\n');
+        const entries = [
+          ...layerEntries(prefix),
+          ...(await previewEntries(prefix)),
+          ...(await xcodeEntries(prefix)),
+          {
+            path: `${prefix}composition.json`,
+            blob: textBlob(JSON.stringify(compositionManifest(), null, 2))
+          },
+          {
+            path: `${prefix}README.txt`,
+            blob: textBlob(`${readme}\n`, 'text/plain;charset=utf-8')
+          }
         ];
+        const zip = await createZip(entries);
+        downloadBlob(zip, `${state.fileName}-apple-icon.zip`);
+        setStatus('完整图层 ZIP 已生成。', 'success');
+      } catch (error) {
+        console.error(error);
+        setStatus(`ZIP 生成失败：${error.message}`, 'warning');
+      } finally {
+        state.exporting = false;
+        updateExportButtons();
       }
-
-      if (platformId === 'tvos') {
-        const masterCanvas = renderPlatformMaster('tvos');
-        return makeTvEntries(prefix, masterCanvas);
-      }
-
-      const masterCanvas = renderPlatformMaster('watchos');
-      return makeWatchEntries(prefix, masterCanvas);
     }
 
-    async function exportZip(kind) {
-      if (!state.image) return;
-      statusEl.textContent = '正在生成高质量套图...';
-      const prefix = `${state.fileName}-apple-icons/`;
-      let entries = [];
+    function bindRovingTabs(tabs, onSelect) {
+      tabs.forEach((tab) => {
+        tab.addEventListener('click', () => onSelect(tab));
+        tab.addEventListener('keydown', (event) => {
+          const currentIndex = tabs.indexOf(tab);
+          let nextIndex = currentIndex;
 
-      if (kind === 'current') {
-        entries = await makePlatformEntries(state.platformId);
-      } else {
-        entries = [
-          ...(await makePlatformEntries('ios', prefix)),
-          ...(await makePlatformEntries('tvos', prefix)),
-          ...(await makePlatformEntries('watchos', prefix))
-        ];
-      }
+          if (event.key === 'ArrowLeft') {
+            nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+          } else if (event.key === 'ArrowRight') {
+            nextIndex = (currentIndex + 1) % tabs.length;
+          } else if (event.key === 'Home') {
+            nextIndex = 0;
+          } else if (event.key === 'End') {
+            nextIndex = tabs.length - 1;
+          } else {
+            return;
+          }
 
-      const zip = await createZip(entries);
-      const suffix = kind === 'current' ? currentPlatform().zipSuffix : 'apple-icons';
-      downloadBlob(zip, `${state.fileName}-${suffix}.zip`);
-      statusEl.textContent = '套图已生成。';
+          event.preventDefault();
+          onSelect(tabs[nextIndex]);
+          tabs[nextIndex].focus();
+        });
+      });
     }
 
-    fileInput.addEventListener('change', (event) => loadFile(event.target.files[0]));
-
-    dropZone.addEventListener('dragover', (event) => {
-      event.preventDefault();
-      dropZone.classList.add('dragging');
+    bindRovingTabs(appearanceTabs, (tab) => {
+      state.modeId = tab.dataset.mode;
+      redraw();
     });
 
-    dropZone.addEventListener('dragleave', () => {
-      dropZone.classList.remove('dragging');
+    bindRovingTabs(platformTabs, (tab) => {
+      state.platformId = tab.dataset.platform;
+      redraw();
     });
 
-    dropZone.addEventListener('drop', (event) => {
-      event.preventDefault();
-      dropZone.classList.remove('dragging');
-      loadFile(event.dataTransfer.files[0]);
+    fileInputs.forEach((input) => {
+      input.addEventListener('change', (event) => {
+        loadLayerFile(input.dataset.mode, input.dataset.layer, event.target.files[0]);
+      });
+    });
+
+    clearButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        clearLayer(button.dataset.clearMode, button.dataset.clearLayer);
+      });
     });
 
     scaleInput.addEventListener('input', () => {
@@ -1211,31 +1866,42 @@
       redraw();
     });
 
-    backgroundColorInput.addEventListener('input', redraw);
-    transparentBgInput.addEventListener('change', redraw);
+    backgroundColorInput.addEventListener('input', () => {
+      state.backgroundColors[state.modeId] = backgroundColorInput.value;
+      invalidateComposites(state.modeId);
+      redraw();
+    });
+
     maskPreviewInput.addEventListener('change', redraw);
-    document.getElementById('fitButton').addEventListener('click', fitImage);
+    document.getElementById('fitButton').addEventListener('click', fitCurrent);
     document.getElementById('resetButton').addEventListener('click', resetPosition);
 
-    document.getElementById('downloadPng').addEventListener('click', async () => {
-      if (!state.image) return;
-      const platform = currentPlatform();
-      const masterCanvas = renderIcon(platform.width, platform.height, false, platform);
-      downloadBlob(await canvasToBlob(masterCanvas), `${state.fileName}-${platform.pngName}`);
+    downloadPngButton.addEventListener('click', async () => {
+      if (!isCompositionReady() || state.exporting) return;
+      state.exporting = true;
+      updateExportButtons();
+      setStatus('正在生成当前预览 PNG...');
+
+      try {
+        const platform = currentPlatform();
+        const modeName = currentModeLabel();
+        const preview = renderIcon({ mode: state.modeId, platform });
+        const blob = await canvasToBlob(preview);
+        downloadBlob(blob, `${state.fileName}-AppIcon-${modeName}-${platform.width}x${platform.height}.png`);
+        setStatus('当前预览 PNG 已生成。', 'success');
+      } catch (error) {
+        console.error(error);
+        setStatus(`PNG 生成失败：${error.message}`, 'warning');
+      } finally {
+        state.exporting = false;
+        updateExportButtons();
+      }
     });
 
-    document.getElementById('downloadCurrent').addEventListener('click', () => exportZip('current'));
-    document.getElementById('downloadAll').addEventListener('click', () => exportZip('all'));
-
-    platformTabs.forEach((tab) => {
-      tab.addEventListener('click', () => {
-        state.platformId = tab.dataset.platform;
-        redraw();
-      });
-    });
+    downloadZipButton.addEventListener('click', exportZip);
 
     canvas.addEventListener('pointerdown', (event) => {
-      if (!state.image) return;
+      if (!hasAnyEffectiveLayer(state.modeId)) return;
       canvas.setPointerCapture(event.pointerId);
       const point = canvasPoint(event);
       state.dragging = true;
@@ -1262,7 +1928,6 @@
       state.dragging = false;
     });
 
-    updateSizeList();
     redraw();
   </script>
 </body>
