@@ -632,6 +632,41 @@
       color: var(--muted);
     }
 
+    .delivery-table {
+      width: 100%;
+      border-collapse: collapse;
+      color: #344054;
+      font-size: 12px;
+      line-height: 1.45;
+      table-layout: fixed;
+    }
+
+    .delivery-table th,
+    .delivery-table td {
+      padding: 9px 6px;
+      border-bottom: 1px solid var(--soft-line);
+      overflow-wrap: anywhere;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .delivery-table th {
+      color: #1f2937;
+      font-weight: 720;
+    }
+
+    .delivery-table th:first-child,
+    .delivery-table td:first-child {
+      width: 34%;
+      padding-left: 0;
+    }
+
+    .delivery-table th:last-child,
+    .delivery-table td:last-child {
+      width: 22%;
+      padding-right: 0;
+    }
+
     .subsection-title {
       padding: 18px 0 10px;
     }
@@ -910,8 +945,7 @@
               <button class="button secondary" id="fitButton" type="button">适配画布</button>
               <button class="button secondary" id="resetButton" type="button">重置位置</button>
             </div>
-            <button class="button" id="downloadReleaseZip" type="button" disabled>下载交付图 ZIP</button>
-            <button class="button secondary" id="downloadCompleteZip" type="button" disabled>下载完整图 ZIP</button>
+            <button class="button" id="downloadZip" type="button" disabled>下载统一 ZIP</button>
           </div>
 
           <p class="status" id="status" aria-live="polite">请上传 Default 背景层和前景层。</p>
@@ -944,10 +978,24 @@
             <li><b>Dark 模式</b><span>未上传的 Dark 图层自动继承 Default，对应模式可即时预览。</span></li>
             <li><b>Apple 基准</b><span id="specBase">iOS、iPadOS、macOS 使用 1024 × 1024 px 正方形画布。</span></li>
             <li><b>遮罩</b><span id="specMask">正式资产不预裁切；系统在设备上应用最终遮罩。</span></li>
-            <li><b>交付图 ZIP</b><span>仅含 Release：Xcode 资产、分平台成品图层和未遮罩 PNG。</span></li>
-            <li><b>完整图 ZIP</b><span>在 Release 之外附带原始图层、模拟遮罩预览、构图配置和说明。</span></li>
-            <li><b>最终交付</b><span>开发者用 Release 中的资产完成 Xcode 配置；新版图标需由 Icon Composer 保存 .icon。</span></li>
+            <li><b>统一 ZIP</b><span>一次下载正式交付、原始素材、遮罩预览和构图文档。</span></li>
+            <li><b>最终交付</b><span>Release 下只按 iOS、tvOS、watchOS 分平台存放。</span></li>
           </ul>
+
+          <h2 class="subsection-title">目录与使用场景</h2>
+          <table class="delivery-table">
+            <thead>
+              <tr><th>目录</th><th>使用场景</th><th>使用方</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Release/iOS</td><td>iOS 正式图、图层和 Xcode AppIcon</td><td>iOS 开发</td></tr>
+              <tr><td>Release/tvOS</td><td>tvOS 横向正式图和视差图层</td><td>tvOS 开发</td></tr>
+              <tr><td>Release/watchOS</td><td>watchOS 正式图和图层</td><td>watchOS 开发</td></tr>
+              <tr><td>Source/Original</td><td>保留设计师上传的 SVG/PNG 原稿</td><td>设计师</td></tr>
+              <tr><td>Preview/Masked</td><td>评审最终外形，不用于 Apple 提交</td><td>产品、设计</td></tr>
+              <tr><td>Docs</td><td>查看构图参数、继承关系和目录说明</td><td>设计、开发</td></tr>
+            </tbody>
+          </table>
 
           <h2 class="subsection-title">当前平台</h2>
           <ul class="size-list" id="sizeList"></ul>
@@ -1228,9 +1276,8 @@
     const modeIndicator = document.getElementById('modeIndicator');
     const specBase = document.getElementById('specBase');
     const specMask = document.getElementById('specMask');
-    const downloadReleaseZipButton = document.getElementById('downloadReleaseZip');
-    const downloadCompleteZipButton = document.getElementById('downloadCompleteZip');
-    const exportButtons = [downloadReleaseZipButton, downloadCompleteZipButton];
+    const downloadZipButton = document.getElementById('downloadZip');
+    const exportButtons = [downloadZipButton];
 
     const makeTransform = () => ({
       scalePercent: 100,
@@ -1297,6 +1344,7 @@
       ios: {
         id: 'ios',
         label: 'iOS-macOS',
+        releaseDirectory: 'iOS',
         width: 1024,
         height: 1024,
         guide: 'square',
@@ -1307,6 +1355,7 @@
       tvos: {
         id: 'tvos',
         label: 'tvOS',
+        releaseDirectory: 'tvOS',
         width: 800,
         height: 480,
         guide: 'tvos',
@@ -1317,6 +1366,7 @@
       watchos: {
         id: 'watchos',
         label: 'watchOS',
+        releaseDirectory: 'watchOS',
         width: 1088,
         height: 1088,
         guide: 'watchos',
@@ -2051,7 +2101,7 @@
           middleAndForegroundFit: 'contain'
         },
         platformTransforms: state.transforms,
-        note: 'Release/Layers contains platform-adapted PNG layers. Import iOS-macOS and watchOS layers into Icon Composer; add tvOS layers to an Xcode image stack.'
+        note: 'Release/iOS, Release/tvOS, and Release/watchOS contain platform-adapted final PNGs and layers. Add iOS AppIcon.appiconset to an Xcode asset catalog; use the platform layers for Icon Composer or a tvOS image stack as applicable.'
       };
     }
 
@@ -2079,7 +2129,7 @@
           const modeName = mode === 'dark' ? 'Dark' : 'Default';
           const preview = renderIcon({ mode, platform });
           entries.push({
-            path: `${prefix}${platform.label}/AppIcon-${modeName}-${platform.width}x${platform.height}.png`,
+            path: `${prefix}${platform.releaseDirectory}/AppIcon-${modeName}-${platform.width}x${platform.height}.png`,
             blob: await canvasToBlob(preview)
           });
         }
@@ -2098,7 +2148,7 @@
             if (!prepared) continue;
             const number = String(index + 1).padStart(2, '0');
             entries.push({
-              path: `${prefix}${platform.label}/${modeName}/${number}-${layer}.png`,
+              path: `${prefix}${platform.releaseDirectory}/Layers/${modeName}/${number}-${layer}.png`,
               blob: await canvasToBlob(prepared, { allowTransparency: layer !== 'background' })
             });
           }
@@ -2114,7 +2164,7 @@
           const modeName = mode === 'dark' ? 'Dark' : 'Default';
           const maskedPreview = renderMaskedPreview({ mode, platform });
           entries.push({
-            path: `${prefix}${platform.label}/AppIcon-${modeName}-Masked-${platform.width}x${platform.height}.png`,
+            path: `${prefix}${platform.releaseDirectory}/AppIcon-${modeName}-Masked-${platform.width}x${platform.height}.png`,
             blob: await canvasToBlob(maskedPreview, { allowTransparency: true })
           });
         }
@@ -2126,7 +2176,7 @@
       const ios = platforms.ios;
       const defaultIcon = renderIcon({ mode: 'default', platform: ios });
       const darkIcon = renderIcon({ mode: 'dark', platform: ios });
-      const appIconPrefix = `${prefix}Xcode/iOS/AppIcon.appiconset/`;
+      const appIconPrefix = `${prefix}AppIcon.appiconset/`;
       return [
         {
           path: `${appIconPrefix}AppIcon-Default-1024.png`,
@@ -2143,71 +2193,74 @@
       ];
     }
 
-    function releaseReadme() {
+    function packageReadme() {
       return [
-        'Apple App Icon 交付包',
+        'Apple App Icon 统一交付包',
         '',
-        'Release/PNG：按平台输出的未遮罩、不透明 sRGB 成品 PNG。系统会应用最终圆角或圆形遮罩。',
-        'Release/Layers：已应用网页构图参数的分平台 PNG 图层。iOS-macOS 与 watchOS 图层导入 Icon Composer；tvOS 图层加入 Xcode App Icon image stack。',
-        'Release/Xcode/iOS：可拖入 Asset Catalog 的传统 AppIcon.appiconset，包含 Default 与 Dark 1024 PNG。',
+        'Release：最终开发交付，仅按 iOS、tvOS、watchOS 三个平台分目录。正式 PNG 不预裁切，系统应用最终遮罩。',
+        'Source/Original：设计师上传的原始 SVG/PNG；Dark 继承的图层会复制 Default 素材。',
+        'Preview/Masked：模拟设备最终外形的透明 PNG，仅供评审与展示，不可作为 Apple 提交资产。',
+        'Docs/composition.json：图层来源、继承关系、跨平台缩放、画布和整体变换参数。',
+        'Docs/DIRECTORY-GUIDE.md：目录、使用场景和使用方说明。',
         '',
-        '最新版 Xcode 优先使用 Icon Composer 保存的 AppIcon.icon。网页不生成 Apple 专用 .icon 文件。',
+        'Release/iOS/AppIcon.appiconset 可加入 Xcode Asset Catalog，包含 Default 与 Dark 1024 PNG。',
+        'Release 下各平台的 Layers 已应用网页构图参数；tvOS 图层可用于 Xcode image stack。',
+        '最新版 Xcode 可使用 Icon Composer 保存 AppIcon.icon；网页不生成 Apple 专用 .icon 文件。',
         'App Store 审核接收的是通过 Xcode 构建提交的 App，不直接接收本 ZIP。',
         'tvOS 与 watchOS 的正式外形由系统处理，不要提交模拟遮罩预览图。'
       ].join('\n');
     }
 
-    function completeReadme() {
+    function directoryGuide() {
       return [
-        'Apple App Icon 完整包',
+        '# Apple App Icon 目录与使用场景',
         '',
-        'Release：开发交付目录，与“下载交付图 ZIP”中的内容一致。',
-        'Source/Original：设计师上传的原始 SVG/PNG；Dark 继承的图层会复制 Default 素材。',
-        'Preview/Masked：模拟设备最终外形的透明 PNG，仅供评审与展示，不可作为 Apple 提交资产。',
-        'Docs/composition.json：图层来源、继承关系、跨平台缩放、画布和整体变换参数。',
-        'Docs/README.txt：本目录说明。'
+        '| 目录 | 使用场景 | 使用方 |',
+        '| --- | --- | --- |',
+        '| `Release/iOS` | iOS 正式图、图层和 Xcode AppIcon | iOS 开发 |',
+        '| `Release/tvOS` | tvOS 横向正式图和视差图层 | tvOS 开发 |',
+        '| `Release/watchOS` | watchOS 正式图和图层 | watchOS 开发 |',
+        '| `Source/Original` | 保留设计师上传的 SVG/PNG 原稿 | 设计师 |',
+        '| `Preview/Masked` | 评审最终外形，不用于 Apple 提交 | 产品、设计 |',
+        '| `Docs` | 查看构图参数、继承关系和目录说明 | 设计、开发 |'
       ].join('\n');
     }
 
     async function releaseEntries() {
       return [
-        ...(await flattenedReleaseEntries('Release/PNG/')),
-        ...(await preparedLayerEntries('Release/Layers/')),
-        ...(await xcodeEntries('Release/')),
-        {
-          path: 'Release/README.txt',
-          blob: textBlob(`${releaseReadme()}\n`, 'text/plain;charset=utf-8')
-        }
+        ...(await flattenedReleaseEntries('Release/')),
+        ...(await preparedLayerEntries('Release/')),
+        ...(await xcodeEntries('Release/iOS/'))
       ];
     }
 
-    async function exportZip(kind) {
+    async function exportZip() {
       if (!isCompositionReady() || state.exporting) return;
       state.exporting = true;
       updateExportButtons();
-      const complete = kind === 'complete';
-      setStatus(complete ? '正在生成完整图 ZIP...' : '正在生成交付图 ZIP...');
+      setStatus('正在生成统一 ZIP...');
 
       try {
         const entries = await releaseEntries();
-        if (complete) {
-          entries.push(
-            ...sourceLayerEntries('Source/Original/'),
-            ...(await maskedPreviewEntries('Preview/Masked/')),
-            {
-              path: 'Docs/composition.json',
-              blob: textBlob(JSON.stringify(compositionManifest(), null, 2))
-            },
-            {
-              path: 'Docs/README.txt',
-              blob: textBlob(`${completeReadme()}\n`, 'text/plain;charset=utf-8')
-            }
-          );
-        }
+        entries.push(
+          ...sourceLayerEntries('Source/Original/'),
+          ...(await maskedPreviewEntries('Preview/Masked/')),
+          {
+            path: 'Docs/composition.json',
+            blob: textBlob(JSON.stringify(compositionManifest(), null, 2))
+          },
+          {
+            path: 'Docs/README.txt',
+            blob: textBlob(`${packageReadme()}\n`, 'text/plain;charset=utf-8')
+          },
+          {
+            path: 'Docs/DIRECTORY-GUIDE.md',
+            blob: textBlob(`${directoryGuide()}\n`, 'text/markdown;charset=utf-8')
+          }
+        );
         const zip = await createZip(entries);
-        const suffix = complete ? 'complete' : 'release';
-        downloadBlob(zip, `${state.fileName}-apple-icon-${suffix}.zip`);
-        setStatus(complete ? '完整图 ZIP 已生成。' : '交付图 ZIP 已生成。', 'success');
+        downloadBlob(zip, `${state.fileName}-apple-icon.zip`);
+        setStatus('统一 ZIP 已生成。', 'success');
       } catch (error) {
         console.error(error);
         setStatus(`ZIP 生成失败：${error.message}`, 'warning');
@@ -2215,14 +2268,6 @@
         state.exporting = false;
         updateExportButtons();
       }
-    }
-
-    function exportReleaseZip() {
-      return exportZip('release');
-    }
-
-    function exportCompleteZip() {
-      return exportZip('complete');
     }
 
     function bindRovingTabs(tabs, onSelect) {
@@ -2314,8 +2359,7 @@
     document.getElementById('fitButton').addEventListener('click', fitCurrent);
     document.getElementById('resetButton').addEventListener('click', resetPosition);
 
-    downloadReleaseZipButton.addEventListener('click', exportReleaseZip);
-    downloadCompleteZipButton.addEventListener('click', exportCompleteZip);
+    downloadZipButton.addEventListener('click', exportZip);
 
     canvas.addEventListener('pointerdown', (event) => {
       if (!hasAnyEffectiveLayer(state.modeId)) return;

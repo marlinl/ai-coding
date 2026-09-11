@@ -36,8 +36,10 @@
           throw new Error('index.html is not self-contained');
         }
         const downloadButtons = Array.from(app.document.querySelectorAll('button[id^="download"]'));
-        if (downloadButtons.length !== 2 || downloadButtons.some((button) => !button.textContent.includes('ZIP'))) {
-          throw new Error('the page must expose exactly two ZIP download buttons');
+        if (downloadButtons.length !== 1
+          || downloadButtons[0].id !== 'downloadZip'
+          || !downloadButtons[0].textContent.includes('统一 ZIP')) {
+          throw new Error('the page must expose exactly one unified ZIP download button');
         }
 
         const backgroundSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><rect width="1024" height="1024" fill="#0a84ff"/></svg>';
@@ -47,7 +49,7 @@
         app.loadLayerFile('default', 'foreground', new app.File([foregroundSvg], 'foreground.svg', { type: 'image/svg+xml' }));
         await waitFor(
           () => downloadButtons.every((button) => !button.disabled),
-          'required layers did not enable both ZIP exports'
+          'required layers did not enable the unified ZIP export'
         );
         document.body.dataset.step = 'layers-ready';
 
@@ -208,57 +210,49 @@
         app.downloadBlob = (blob, filename) => {
           downloads.push({ blob, filename });
         };
-        app.document.getElementById('downloadReleaseZip').click();
-        await waitFor(() => downloads.length === 1, 'release ZIP download was not produced');
-        document.body.dataset.step = 'release-created';
-        if (!downloads[0].filename.endsWith('-release.zip')) {
-          throw new Error('release ZIP filename is incorrect');
+        app.document.getElementById('downloadZip').click();
+        await waitFor(() => downloads.length === 1, 'unified ZIP download was not produced');
+        document.body.dataset.step = 'zip-created';
+        if (!downloads[0].filename.endsWith('-apple-icon.zip')) {
+          throw new Error('unified ZIP filename is incorrect');
         }
-        const releaseZipText = new TextDecoder().decode(new Uint8Array(await downloads[0].blob.arrayBuffer()));
-        const releasePaths = [
-          'Release/PNG/iOS-macOS/AppIcon-Dark-1024x1024.png',
-          'Release/Layers/iOS-macOS/Default/01-background.png',
-          'Release/Layers/tvOS/Default/02-middle.png',
-          'Release/Layers/watchOS/Dark/03-foreground.png',
-          'Release/Xcode/iOS/AppIcon.appiconset/Contents.json',
-          'Release/README.txt'
-        ];
-        releasePaths.forEach((path) => {
-          if (!releaseZipText.includes(path)) {
-            throw new Error(`release ZIP is missing ${path}`);
-          }
-        });
-        ['Source/', 'Preview/', 'Docs/'].forEach((path) => {
-          if (releaseZipText.includes(path)) {
-            throw new Error(`release ZIP contains non-release directory ${path}`);
-          }
-        });
-
-        app.document.getElementById('downloadCompleteZip').click();
-        await waitFor(() => downloads.length === 2, 'complete ZIP download was not produced');
-        document.body.dataset.step = 'complete-created';
-        if (!downloads[1].filename.endsWith('-complete.zip')) {
-          throw new Error('complete ZIP filename is incorrect');
-        }
-        const completeZipText = new TextDecoder().decode(new Uint8Array(await downloads[1].blob.arrayBuffer()));
+        const zipText = new TextDecoder().decode(new Uint8Array(await downloads[0].blob.arrayBuffer()));
         [
-          ...releasePaths,
+          'Release/iOS/AppIcon-Dark-1024x1024.png',
+          'Release/iOS/Layers/Default/01-background.png',
+          'Release/iOS/AppIcon.appiconset/Contents.json',
+          'Release/tvOS/AppIcon-Default-800x480.png',
+          'Release/tvOS/Layers/Default/02-middle.png',
+          'Release/watchOS/AppIcon-Dark-1088x1088.png',
+          'Release/watchOS/Layers/Dark/03-foreground.png',
           'Source/Original/Default/01-background.svg',
           'Source/Original/Default/02-middle.svg',
           'Source/Original/Dark/03-foreground.svg',
+          'Preview/Masked/iOS/AppIcon-Default-Masked-1024x1024.png',
           'Preview/Masked/watchOS/AppIcon-Dark-Masked-1088x1088.png',
           'Docs/composition.json',
-          'Docs/README.txt'
+          'Docs/README.txt',
+          'Docs/DIRECTORY-GUIDE.md'
         ].forEach((path) => {
-          if (!completeZipText.includes(path)) {
-            throw new Error(`complete ZIP is missing ${path}`);
+          if (!zipText.includes(path)) {
+            throw new Error(`unified ZIP is missing ${path}`);
+          }
+        });
+        [
+          'Release/PNG/',
+          'Release/Layers/',
+          'Release/Xcode/',
+          'Release/README.txt',
+          'Release/iOS-macOS/'
+        ].forEach((path) => {
+          if (zipText.includes(path)) {
+            throw new Error(`unified ZIP contains legacy release path ${path}`);
           }
         });
 
-        window.testReleaseZipBlob = downloads[0].blob;
-        window.testCompleteZipBlob = downloads[1].blob;
+        window.testZipBlob = downloads[0].blob;
         document.body.dataset.result = 'PASS';
-        document.body.textContent = 'two-ZIP release and complete export flow passed';
+        document.body.textContent = 'single unified ZIP export flow passed';
       } catch (error) {
         document.body.dataset.result = 'FAIL';
         document.body.textContent = error.message;
