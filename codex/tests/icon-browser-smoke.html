@@ -17,7 +17,7 @@
             reject(new Error(message));
           } else {
             attempts += 1;
-            requestAnimationFrame(check);
+            setTimeout(check, 16);
           }
         };
         check();
@@ -26,6 +26,7 @@
 
     document.getElementById('app').addEventListener('load', async (event) => {
       try {
+        document.body.dataset.step = 'app-loaded';
         const app = event.currentTarget.contentWindow;
         const iconCore = app.IconCore;
         if (!iconCore) {
@@ -34,13 +35,21 @@
         if (app.document.querySelector('link[rel="stylesheet"], script[src]')) {
           throw new Error('index.html is not self-contained');
         }
+        const downloadButtons = Array.from(app.document.querySelectorAll('button[id^="download"]'));
+        if (downloadButtons.length !== 2 || downloadButtons.some((button) => !button.textContent.includes('ZIP'))) {
+          throw new Error('the page must expose exactly two ZIP download buttons');
+        }
 
         const backgroundSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><rect width="1024" height="1024" fill="#0a84ff"/></svg>';
         const middleSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><rect width="1024" height="1024" fill="#ff3b30"/></svg>';
         const foregroundSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><circle cx="512" cy="512" r="260" fill="white"/></svg>';
         app.loadLayerFile('default', 'background', new app.File([backgroundSvg], 'background.svg', { type: 'image/svg+xml' }));
         app.loadLayerFile('default', 'foreground', new app.File([foregroundSvg], 'foreground.svg', { type: 'image/svg+xml' }));
-        await waitFor(() => !app.document.getElementById('downloadZip').disabled, 'required layers did not enable export');
+        await waitFor(
+          () => downloadButtons.every((button) => !button.disabled),
+          'required layers did not enable both ZIP exports'
+        );
+        document.body.dataset.step = 'layers-ready';
 
         const layerScaleInput = (layer) => app.document.querySelector(`.layer-scale-input[data-layer="${layer}"]`);
         const layerScaleNumber = (layer) => app.document.querySelector(`.layer-scale-number[data-layer="${layer}"]`);
@@ -126,7 +135,7 @@
         }
 
         const defaultManifest = app.compositionManifest();
-        if (defaultManifest.formatVersion !== 2
+        if (defaultManifest.formatVersion !== 3
           || defaultManifest.layerScaleBehavior.synchronizedAcrossPlatforms !== true
           || defaultManifest.layerScaleBehavior.middleAndForegroundFit !== 'contain'
           || defaultManifest.modes.default.layers.background.scalePercent !== 100
@@ -173,32 +182,83 @@
           throw new Error('masked preview PNG does not contain transparent corners');
         }
 
-        let download = null;
-        app.downloadBlob = (blob, filename) => {
-          download = { blob, filename };
-        };
-        await app.exportZip();
-        await waitFor(() => download, 'ZIP download was not produced');
-        const zipText = new TextDecoder().decode(new Uint8Array(await download.blob.arrayBuffer()));
-        const requiredPaths = [
-          'Layers/Default/01-background.svg',
-          'Layers/Default/02-middle.svg',
-          'Layers/Default/03-foreground.svg',
-          'Layers/Dark/01-background.svg',
-          'Previews/iOS-macOS/AppIcon-Dark-1024x1024.png',
-          'MaskedPreviews/watchOS/AppIcon-Dark-Masked-1088x1088.png',
-          'Xcode/iOS/AppIcon.appiconset/Contents.json',
-          'composition.json'
-        ];
-        requiredPaths.forEach((path) => {
-          if (!zipText.includes(path)) {
-            throw new Error(`ZIP is missing ${path}`);
+        app.document.querySelector('[data-mode="default"]').click();
+        const platform = app.currentPlatform();
+        const preparedBackground = app.renderPreparedLayer({ mode: 'default', platform, layer: 'background' });
+        const preparedMiddle = app.renderPreparedLayer({ mode: 'default', platform, layer: 'middle' });
+        const preparedForeground = app.renderPreparedLayer({ mode: 'default', platform, layer: 'foreground' });
+        const reconstructed = app.document.createElement('canvas');
+        reconstructed.width = platform.width;
+        reconstructed.height = platform.height;
+        const reconstructedContext = reconstructed.getContext('2d');
+        reconstructedContext.drawImage(preparedBackground, 0, 0);
+        reconstructedContext.drawImage(preparedMiddle, 0, 0);
+        reconstructedContext.drawImage(preparedForeground, 0, 0);
+        const releasePreview = app.renderIcon({ mode: 'default', platform });
+        const releaseContext = releasePreview.getContext('2d');
+        [[10, 10], [512, 512], [700, 512]].forEach(([x, y]) => {
+          const actual = Array.from(reconstructedContext.getImageData(x, y, 1, 1).data);
+          const expected = Array.from(releaseContext.getImageData(x, y, 1, 1).data);
+          if (actual.join(',') !== expected.join(',')) {
+            throw new Error('prepared release layers do not reconstruct the final icon');
           }
         });
 
-        window.testZipBlob = download.blob;
+        const downloads = [];
+        app.downloadBlob = (blob, filename) => {
+          downloads.push({ blob, filename });
+        };
+        app.document.getElementById('downloadReleaseZip').click();
+        await waitFor(() => downloads.length === 1, 'release ZIP download was not produced');
+        document.body.dataset.step = 'release-created';
+        if (!downloads[0].filename.endsWith('-release.zip')) {
+          throw new Error('release ZIP filename is incorrect');
+        }
+        const releaseZipText = new TextDecoder().decode(new Uint8Array(await downloads[0].blob.arrayBuffer()));
+        const releasePaths = [
+          'Release/PNG/iOS-macOS/AppIcon-Dark-1024x1024.png',
+          'Release/Layers/iOS-macOS/Default/01-background.png',
+          'Release/Layers/tvOS/Default/02-middle.png',
+          'Release/Layers/watchOS/Dark/03-foreground.png',
+          'Release/Xcode/iOS/AppIcon.appiconset/Contents.json',
+          'Release/README.txt'
+        ];
+        releasePaths.forEach((path) => {
+          if (!releaseZipText.includes(path)) {
+            throw new Error(`release ZIP is missing ${path}`);
+          }
+        });
+        ['Source/', 'Preview/', 'Docs/'].forEach((path) => {
+          if (releaseZipText.includes(path)) {
+            throw new Error(`release ZIP contains non-release directory ${path}`);
+          }
+        });
+
+        app.document.getElementById('downloadCompleteZip').click();
+        await waitFor(() => downloads.length === 2, 'complete ZIP download was not produced');
+        document.body.dataset.step = 'complete-created';
+        if (!downloads[1].filename.endsWith('-complete.zip')) {
+          throw new Error('complete ZIP filename is incorrect');
+        }
+        const completeZipText = new TextDecoder().decode(new Uint8Array(await downloads[1].blob.arrayBuffer()));
+        [
+          ...releasePaths,
+          'Source/Original/Default/01-background.svg',
+          'Source/Original/Default/02-middle.svg',
+          'Source/Original/Dark/03-foreground.svg',
+          'Preview/Masked/watchOS/AppIcon-Dark-Masked-1088x1088.png',
+          'Docs/composition.json',
+          'Docs/README.txt'
+        ].forEach((path) => {
+          if (!completeZipText.includes(path)) {
+            throw new Error(`complete ZIP is missing ${path}`);
+          }
+        });
+
+        window.testReleaseZipBlob = downloads[0].blob;
+        window.testCompleteZipBlob = downloads[1].blob;
         document.body.dataset.result = 'PASS';
-        document.body.textContent = 'cross-platform synchronized layer scaling and adaptive export flow passed';
+        document.body.textContent = 'two-ZIP release and complete export flow passed';
       } catch (error) {
         document.body.dataset.result = 'FAIL';
         document.body.textContent = error.message;
