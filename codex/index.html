@@ -978,8 +978,9 @@
             <li><b>Dark 模式</b><span>未上传的 Dark 图层自动继承 Default，对应模式可即时预览。</span></li>
             <li><b>Apple 基准</b><span id="specBase">iOS、iPadOS、macOS 使用 1024 × 1024 px 正方形画布。</span></li>
             <li><b>遮罩</b><span id="specMask">正式资产不预裁切；系统在设备上应用最终遮罩。</span></li>
+            <li><b>最终尺寸</b><span>每个平台、每种模式输出 16、32、128、256、512 pt 的 1x 和 2x，共 10 张。</span></li>
             <li><b>统一 ZIP</b><span>一次下载正式交付、原始素材、遮罩预览和构图文档。</span></li>
-            <li><b>最终交付</b><span>Release 下只按 iOS、tvOS、watchOS 分平台存放。</span></li>
+            <li><b>最终交付</b><span>Release 下只按 iOS、tvOS、watchOS 分平台存放最终 PNG。</span></li>
           </ul>
 
           <h2 class="subsection-title">目录与使用场景</h2>
@@ -988,9 +989,9 @@
               <tr><th>目录</th><th>使用场景</th><th>使用方</th></tr>
             </thead>
             <tbody>
-              <tr><td>Release/iOS</td><td>iOS 正式图、图层和 Xcode AppIcon</td><td>iOS 开发</td></tr>
-              <tr><td>Release/tvOS</td><td>tvOS 横向正式图和视差图层</td><td>tvOS 开发</td></tr>
-              <tr><td>Release/watchOS</td><td>watchOS 正式图和图层</td><td>watchOS 开发</td></tr>
+              <tr><td>Release/iOS</td><td>Default、Dark 各 10 张最终尺寸 PNG</td><td>iOS 开发</td></tr>
+              <tr><td>Release/tvOS</td><td>Default、Dark 各 10 张最终尺寸 PNG</td><td>tvOS 开发</td></tr>
+              <tr><td>Release/watchOS</td><td>Default、Dark 各 10 张最终尺寸 PNG</td><td>watchOS 开发</td></tr>
               <tr><td>Source/Original</td><td>保留设计师上传的 SVG/PNG 原稿</td><td>设计师</td></tr>
               <tr><td>Preview/Masked</td><td>评审最终外形，不用于 Apple 提交</td><td>产品、设计</td></tr>
               <tr><td>Docs</td><td>查看构图参数、继承关系和目录说明</td><td>设计、开发</td></tr>
@@ -1125,33 +1126,14 @@
         return Boolean(sources?.default?.background && sources?.default?.foreground);
       }
 
-      function iosContentsJson() {
-        return {
-          images: [
-            {
-              filename: 'AppIcon-Default-1024.png',
-              idiom: 'universal',
-              platform: 'ios',
-              size: '1024x1024'
-            },
-            {
-              appearances: [
-                {
-                  appearance: 'luminosity',
-                  value: 'dark'
-                }
-              ],
-              filename: 'AppIcon-Dark-1024.png',
-              idiom: 'universal',
-              platform: 'ios',
-              size: '1024x1024'
-            }
-          ],
-          info: {
-            author: 'xcode',
-            version: 1
-          }
-        };
+      function releaseIconVariants() {
+        const pointSizes = [16, 32, 128, 256, 512];
+        const scales = [1, 2];
+        return pointSizes.flatMap((pointSize) => scales.map((scale) => ({
+          pointSize,
+          scale,
+          pixelSize: pointSize * scale
+        })));
       }
 
       function pngUsesTransparency(bytes) {
@@ -1204,8 +1186,8 @@
         coverScaleForRotation,
         extensionForImage,
         fittedLayerRect,
-        iosContentsJson,
         pngUsesTransparency,
+        releaseIconVariants,
         requiredLayersReady,
         resolveLayer,
         sanitizeBaseName,
@@ -1229,8 +1211,8 @@
       coverScaleForRotation,
       extensionForImage,
       fittedLayerRect,
-      iosContentsJson,
       pngUsesTransparency,
+      releaseIconVariants,
       requiredLayersReady,
       resolveLayer,
       sanitizeBaseName,
@@ -1348,7 +1330,7 @@
         width: 1024,
         height: 1024,
         guide: 'square',
-        sizeLabels: ['1024 × 1024', '1:1 正方形', 'Default / Dark', '不透明 sRGB'],
+        sizeLabels: ['1024 × 1024 编辑', '16–512 pt', '1x / 2x', '每模式 10 张'],
         specBase: 'iOS、iPadOS、macOS 使用 1024 × 1024 px 正方形画布。',
         specMask: '系统应用圆角矩形遮罩；当前轮廓仅供预览。'
       },
@@ -1359,7 +1341,7 @@
         width: 800,
         height: 480,
         guide: 'tvos',
-        sizeLabels: ['800 × 480', '5:3 横向', '分层构图参考', '不透明 sRGB'],
+        sizeLabels: ['800 × 480 编辑', '16–512 pt', '1x / 2x', '每模式 10 张'],
         specBase: 'tvOS 使用 800 × 480 px 横向画布；正方形源图会居中裁切。',
         specMask: '系统可能在聚焦时裁切边缘；当前轮廓仅供构图预览。'
       },
@@ -1370,7 +1352,7 @@
         width: 1088,
         height: 1088,
         guide: 'watchos',
-        sizeLabels: ['1088 × 1088', '1:1 正方形', '圆形预览', '不透明 sRGB'],
+        sizeLabels: ['1088 × 1088 编辑', '16–512 pt', '1x / 2x', '每模式 10 张'],
         specBase: 'watchOS 使用 1088 × 1088 px 正方形设计画布。',
         specMask: '系统应用圆形遮罩；当前轮廓仅供预览。'
       }
@@ -1608,6 +1590,32 @@
         drawGuides(outputContext, width, height, platform);
       }
 
+      return output;
+    }
+
+    function renderReleaseIcon({ mode, platform, pixelSize }) {
+      if (!Number.isInteger(pixelSize) || pixelSize <= 0) {
+        throw new TypeError('导出像素尺寸必须是正整数。');
+      }
+
+      const platformIcon = renderIcon({ mode, platform });
+      const output = document.createElement('canvas');
+      output.width = pixelSize;
+      output.height = pixelSize;
+      const outputContext = canvasContext(output, true);
+      const scale = Math.min(pixelSize / platformIcon.width, pixelSize / platformIcon.height);
+      const width = platformIcon.width * scale;
+      const height = platformIcon.height * scale;
+      useHighQualitySmoothing(outputContext);
+      outputContext.fillStyle = state.backgroundColors[mode];
+      outputContext.fillRect(0, 0, pixelSize, pixelSize);
+      outputContext.drawImage(
+        platformIcon,
+        (pixelSize - width) / 2,
+        (pixelSize - height) / 2,
+        width,
+        height
+      );
       return output;
     }
 
@@ -2092,7 +2100,7 @@
       });
 
       return {
-        formatVersion: 3,
+        formatVersion: 4,
         artboard,
         modes,
         layerScaleBehavior: {
@@ -2100,8 +2108,9 @@
           backgroundFit: 'cover',
           middleAndForegroundFit: 'contain'
         },
+        releaseVariants: releaseIconVariants(),
         platformTransforms: state.transforms,
-        note: 'Release/iOS, Release/tvOS, and Release/watchOS contain platform-adapted final PNGs and layers. Add iOS AppIcon.appiconset to an Xcode asset catalog; use the platform layers for Icon Composer or a tvOS image stack as applicable.'
+        note: 'Release contains only final PNG icons. Each platform and appearance has 16, 32, 128, 256, and 512 pt variants at 1x and 2x.'
       };
     }
 
@@ -2122,34 +2131,21 @@
       return entries;
     }
 
-    async function flattenedReleaseEntries(prefix) {
+    async function releaseIconEntries(prefix) {
       const entries = [];
+      const variants = releaseIconVariants();
       for (const platform of Object.values(platforms)) {
         for (const mode of MODE_IDS) {
           const modeName = mode === 'dark' ? 'Dark' : 'Default';
-          const preview = renderIcon({ mode, platform });
-          entries.push({
-            path: `${prefix}${platform.releaseDirectory}/AppIcon-${modeName}-${platform.width}x${platform.height}.png`,
-            blob: await canvasToBlob(preview)
-          });
-        }
-      }
-      return entries;
-    }
-
-    async function preparedLayerEntries(prefix) {
-      const entries = [];
-      for (const platform of Object.values(platforms)) {
-        for (const mode of MODE_IDS) {
-          const modeName = mode === 'dark' ? 'Dark' : 'Default';
-          for (let index = 0; index < LAYER_IDS.length; index += 1) {
-            const layer = LAYER_IDS[index];
-            const prepared = renderPreparedLayer({ mode, platform, layer });
-            if (!prepared) continue;
-            const number = String(index + 1).padStart(2, '0');
+          for (const variant of variants) {
+            const icon = renderReleaseIcon({
+              mode,
+              platform,
+              pixelSize: variant.pixelSize
+            });
             entries.push({
-              path: `${prefix}${platform.releaseDirectory}/Layers/${modeName}/${number}-${layer}.png`,
-              blob: await canvasToBlob(prepared, { allowTransparency: layer !== 'background' })
+              path: `${prefix}${platform.releaseDirectory}/AppIcon-${modeName}-${variant.pointSize}pt@${variant.scale}x.png`,
+              blob: await canvasToBlob(icon)
             });
           }
         }
@@ -2172,42 +2168,20 @@
       return entries;
     }
 
-    async function xcodeEntries(prefix) {
-      const ios = platforms.ios;
-      const defaultIcon = renderIcon({ mode: 'default', platform: ios });
-      const darkIcon = renderIcon({ mode: 'dark', platform: ios });
-      const appIconPrefix = `${prefix}AppIcon.appiconset/`;
-      return [
-        {
-          path: `${appIconPrefix}AppIcon-Default-1024.png`,
-          blob: await canvasToBlob(defaultIcon)
-        },
-        {
-          path: `${appIconPrefix}AppIcon-Dark-1024.png`,
-          blob: await canvasToBlob(darkIcon)
-        },
-        {
-          path: `${appIconPrefix}Contents.json`,
-          blob: textBlob(JSON.stringify(iosContentsJson(), null, 2))
-        }
-      ];
-    }
-
     function packageReadme() {
       return [
         'Apple App Icon 统一交付包',
         '',
-        'Release：最终开发交付，仅按 iOS、tvOS、watchOS 三个平台分目录。正式 PNG 不预裁切，系统应用最终遮罩。',
+        'Release：最终开发交付，仅按 iOS、tvOS、watchOS 三个平台分目录，目录内只包含最终 PNG。',
+        '每个平台的 Default 与 Dark 各输出 10 张：16、32、128、256、512 pt 分别提供 1x 和 2x。',
+        '文件名中的 pt 与 @1x/@2x 用于匹配 Xcode 尺寸槽；同像素尺寸仍保留为不同文件，避免槽位混淆。',
         'Source/Original：设计师上传的原始 SVG/PNG；Dark 继承的图层会复制 Default 素材。',
         'Preview/Masked：模拟设备最终外形的透明 PNG，仅供评审与展示，不可作为 Apple 提交资产。',
         'Docs/composition.json：图层来源、继承关系、跨平台缩放、画布和整体变换参数。',
         'Docs/DIRECTORY-GUIDE.md：目录、使用场景和使用方说明。',
         '',
-        'Release/iOS/AppIcon.appiconset 可加入 Xcode Asset Catalog，包含 Default 与 Dark 1024 PNG。',
-        'Release 下各平台的 Layers 已应用网页构图参数；tvOS 图层可用于 Xcode image stack。',
-        '最新版 Xcode 可使用 Icon Composer 保存 AppIcon.icon；网页不生成 Apple 专用 .icon 文件。',
         'App Store 审核接收的是通过 Xcode 构建提交的 App，不直接接收本 ZIP。',
-        'tvOS 与 watchOS 的正式外形由系统处理，不要提交模拟遮罩预览图。'
+        '不要将 Source、Preview 或 Docs 中的文件放入 Xcode App Icon 尺寸槽。'
       ].join('\n');
     }
 
@@ -2217,9 +2191,9 @@
         '',
         '| 目录 | 使用场景 | 使用方 |',
         '| --- | --- | --- |',
-        '| `Release/iOS` | iOS 正式图、图层和 Xcode AppIcon | iOS 开发 |',
-        '| `Release/tvOS` | tvOS 横向正式图和视差图层 | tvOS 开发 |',
-        '| `Release/watchOS` | watchOS 正式图和图层 | watchOS 开发 |',
+        '| `Release/iOS` | Default、Dark 各 10 张最终尺寸 PNG | iOS 开发 |',
+        '| `Release/tvOS` | Default、Dark 各 10 张最终尺寸 PNG | tvOS 开发 |',
+        '| `Release/watchOS` | Default、Dark 各 10 张最终尺寸 PNG | watchOS 开发 |',
         '| `Source/Original` | 保留设计师上传的 SVG/PNG 原稿 | 设计师 |',
         '| `Preview/Masked` | 评审最终外形，不用于 Apple 提交 | 产品、设计 |',
         '| `Docs` | 查看构图参数、继承关系和目录说明 | 设计、开发 |'
@@ -2227,11 +2201,7 @@
     }
 
     async function releaseEntries() {
-      return [
-        ...(await flattenedReleaseEntries('Release/')),
-        ...(await preparedLayerEntries('Release/')),
-        ...(await xcodeEntries('Release/iOS/'))
-      ];
+      return releaseIconEntries('Release/');
     }
 
     async function exportZip() {

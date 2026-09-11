@@ -13,7 +13,7 @@
         const check = () => {
           if (predicate()) {
             resolve();
-          } else if (attempts >= 120) {
+          } else if (attempts >= 1800) {
             reject(new Error(message));
           } else {
             attempts += 1;
@@ -137,9 +137,10 @@
         }
 
         const defaultManifest = app.compositionManifest();
-        if (defaultManifest.formatVersion !== 3
+        if (defaultManifest.formatVersion !== 4
           || defaultManifest.layerScaleBehavior.synchronizedAcrossPlatforms !== true
           || defaultManifest.layerScaleBehavior.middleAndForegroundFit !== 'contain'
+          || defaultManifest.releaseVariants.length !== 10
           || defaultManifest.modes.default.layers.background.scalePercent !== 100
           || defaultManifest.modes.default.layers.middle.scalePercent !== 108
           || defaultManifest.modes.default.layers.foreground.scalePercent !== 88) {
@@ -206,6 +207,39 @@
           }
         });
 
+        const releaseAssets = await app.releaseEntries();
+        const releasePaths = releaseAssets.map((entry) => entry.path);
+        if (releaseAssets.length !== 60 || new Set(releasePaths).size !== 60) {
+          throw new Error('Release must contain 60 unique final PNG icons');
+        }
+
+        const releaseCounts = new Map();
+        for (const entry of releaseAssets) {
+          const match = entry.path.match(/^Release\/(iOS|tvOS|watchOS)\/AppIcon-(Default|Dark)-(16|32|128|256|512)pt@(1|2)x\.png$/);
+          if (!match) {
+            throw new Error(`Release contains a non-icon path: ${entry.path}`);
+          }
+          const [, platformName, modeName, pointSize, scale] = match;
+          const bytes = new app.Uint8Array(await entry.blob.arrayBuffer());
+          const view = new app.DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+          const expectedPixelSize = Number(pointSize) * Number(scale);
+          if (view.getUint32(16) !== expectedPixelSize || view.getUint32(20) !== expectedPixelSize) {
+            throw new Error(`${entry.path} has incorrect PNG dimensions`);
+          }
+          if (iconCore.pngUsesTransparency(bytes)) {
+            throw new Error(`${entry.path} is not an opaque PNG`);
+          }
+          const countKey = `${platformName}-${modeName}`;
+          releaseCounts.set(countKey, (releaseCounts.get(countKey) || 0) + 1);
+        }
+        ['iOS', 'tvOS', 'watchOS'].forEach((platformName) => {
+          ['Default', 'Dark'].forEach((modeName) => {
+            if (releaseCounts.get(`${platformName}-${modeName}`) !== 10) {
+              throw new Error(`${platformName} ${modeName} does not contain 10 final icons`);
+            }
+          });
+        });
+
         const downloads = [];
         app.downloadBlob = (blob, filename) => {
           downloads.push({ blob, filename });
@@ -218,13 +252,11 @@
         }
         const zipText = new TextDecoder().decode(new Uint8Array(await downloads[0].blob.arrayBuffer()));
         [
-          'Release/iOS/AppIcon-Dark-1024x1024.png',
-          'Release/iOS/Layers/Default/01-background.png',
-          'Release/iOS/AppIcon.appiconset/Contents.json',
-          'Release/tvOS/AppIcon-Default-800x480.png',
-          'Release/tvOS/Layers/Default/02-middle.png',
-          'Release/watchOS/AppIcon-Dark-1088x1088.png',
-          'Release/watchOS/Layers/Dark/03-foreground.png',
+          ...releasePaths,
+          'Release/iOS/AppIcon-Default-16pt@1x.png',
+          'Release/iOS/AppIcon-Dark-512pt@2x.png',
+          'Release/tvOS/AppIcon-Default-128pt@2x.png',
+          'Release/watchOS/AppIcon-Dark-256pt@1x.png',
           'Source/Original/Default/01-background.svg',
           'Source/Original/Default/02-middle.svg',
           'Source/Original/Dark/03-foreground.svg',
@@ -243,7 +275,9 @@
           'Release/Layers/',
           'Release/Xcode/',
           'Release/README.txt',
-          'Release/iOS-macOS/'
+          'Release/iOS-macOS/',
+          'Release/iOS/AppIcon.appiconset/',
+          'Release/iOS/Contents.json'
         ].forEach((path) => {
           if (zipText.includes(path)) {
             throw new Error(`unified ZIP contains legacy release path ${path}`);
@@ -252,7 +286,7 @@
 
         window.testZipBlob = downloads[0].blob;
         document.body.dataset.result = 'PASS';
-        document.body.textContent = 'single unified ZIP export flow passed';
+        document.body.textContent = '60 Release icons and unified ZIP export flow passed';
       } catch (error) {
         document.body.dataset.result = 'FAIL';
         document.body.textContent = error.message;

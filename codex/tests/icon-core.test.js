@@ -16,8 +16,8 @@ const {
   coverScaleForRotation,
   extensionForImage,
   fittedLayerRect,
-  iosContentsJson,
   pngUsesTransparency,
+  releaseIconVariants,
   requiredLayersReady,
   resolveLayer,
   sanitizeBaseName,
@@ -108,13 +108,33 @@ assert.equal(resolveLayer(sources, 'dark', 'background'), defaultBackground);
 assert.equal(resolveLayer(sources, 'dark', 'foreground'), darkForeground);
 assert.equal(resolveLayer(sources, 'dark', 'middle'), null);
 
-const iosImages = iosContentsJson().images;
-assert.equal(iosImages.length, 2);
-assert.equal(iosImages[0].filename, 'AppIcon-Default-1024.png');
-assert.equal(iosImages[0].platform, 'ios');
-assert.equal(iosImages[0].size, '1024x1024');
-assert.equal(iosImages[1].appearances[0].appearance, 'luminosity');
-assert.equal(iosImages[1].appearances[0].value, 'dark');
+const releaseVariants = Array.from(releaseIconVariants(), (variant) => ({ ...variant }));
+assert.equal(releaseVariants.length, 10);
+assert.deepEqual(releaseVariants.map(({ pointSize, scale }) => `${pointSize}pt@${scale}x`), [
+  '16pt@1x',
+  '16pt@2x',
+  '32pt@1x',
+  '32pt@2x',
+  '128pt@1x',
+  '128pt@2x',
+  '256pt@1x',
+  '256pt@2x',
+  '512pt@1x',
+  '512pt@2x'
+]);
+assert.deepEqual(releaseVariants.map(({ pixelSize }) => pixelSize), [
+  16,
+  32,
+  32,
+  64,
+  128,
+  256,
+  256,
+  512,
+  512,
+  1024
+]);
+assert.equal(new Set(releaseVariants.map(({ pointSize, scale }) => `${pointSize}-${scale}`)).size, 10);
 
 function pngHeader(colorType) {
   const bytes = new Uint8Array(45);
