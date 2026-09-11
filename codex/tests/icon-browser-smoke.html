@@ -94,57 +94,44 @@
           throw new Error('overall scale no longer affects the combined icon');
         }
 
+        setNumber(layerScaleNumber('background'), 100);
+        setNumber(layerScaleNumber('middle'), 108);
+        setNumber(layerScaleNumber('foreground'), 88);
         app.document.querySelector('[data-platform="tvos"]').click();
         if (layerScaleNumber('background').value !== '100'
-          || layerScaleNumber('middle').value !== '100'
-          || layerScaleNumber('foreground').value !== '100'
+          || layerScaleNumber('middle').value !== '108'
+          || layerScaleNumber('foreground').value !== '88'
           || overallScaleNumber.value !== '100') {
-          throw new Error('tvOS scale state leaked from iOS');
-        }
-        setNumber(layerScaleNumber('background'), 70);
-        setNumber(layerScaleNumber('middle'), 60);
-        setNumber(layerScaleNumber('foreground'), 50);
-        setNumber(overallScaleNumber, 110);
-
-        app.document.querySelector('[data-platform="ios"]').click();
-        if (layerScaleNumber('background').value !== '60'
-          || layerScaleNumber('middle').value !== '50'
-          || layerScaleNumber('foreground').value !== '40'
-          || overallScaleNumber.value !== '120') {
-          throw new Error('iOS scale state was not preserved');
-        }
-        app.document.querySelector('[data-platform="tvos"]').click();
-        if (layerScaleNumber('background').value !== '70'
-          || layerScaleNumber('middle').value !== '60'
-          || layerScaleNumber('foreground').value !== '50'
-          || overallScaleNumber.value !== '110') {
-          throw new Error('tvOS scale state was not preserved');
+          throw new Error('tvOS did not receive synchronized layer scales');
         }
         const tvPreview = app.renderIcon();
-        const tvPixel = Array.from(tvPreview.getContext('2d').getImageData(100, 240, 1, 1).data);
-        if (tvPixel.slice(0, 3).join(',') !== '10,132,255') {
-          throw new Error('tvOS render did not use its platform-specific layer scales');
+        const tvContext = tvPreview.getContext('2d');
+        const tvOuterPixel = Array.from(tvContext.getImageData(130, 240, 1, 1).data);
+        const tvMiddlePixel = Array.from(tvContext.getImageData(150, 240, 1, 1).data);
+        if (tvOuterPixel.slice(0, 3).join(',') !== '10,132,255'
+          || tvMiddlePixel.slice(0, 3).join(',') !== '255,59,48') {
+          throw new Error('tvOS content layers were not adapted to the platform short edge');
         }
         app.document.querySelector('[data-platform="watchos"]').click();
         if (layerScaleNumber('background').value !== '100'
-          || layerScaleNumber('middle').value !== '100'
-          || layerScaleNumber('foreground').value !== '100'
+          || layerScaleNumber('middle').value !== '108'
+          || layerScaleNumber('foreground').value !== '88'
           || overallScaleNumber.value !== '100') {
-          throw new Error('watchOS scale state leaked from another platform');
+          throw new Error('watchOS did not receive synchronized layer scales');
         }
         const watchPreview = app.renderIcon();
-        const watchPixel = Array.from(watchPreview.getContext('2d').getImageData(10, 10, 1, 1).data);
-        if (watchPixel.slice(0, 3).join(',') !== '255,59,48') {
-          throw new Error('watchOS render did not use its platform-specific layer scales');
+        const watchPixel = Array.from(watchPreview.getContext('2d').getImageData(544, 544, 1, 1).data);
+        if (watchPixel.slice(0, 3).join(',') !== '255,255,255') {
+          throw new Error('watchOS render did not preserve synchronized foreground scale');
         }
 
         const defaultManifest = app.compositionManifest();
         if (defaultManifest.formatVersion !== 2
-          || defaultManifest.modes.default.layers.background.scalePercentByPlatform.ios !== 60
-          || defaultManifest.modes.default.layers.background.scalePercentByPlatform.tvos !== 70
-          || defaultManifest.modes.default.layers.background.scalePercentByPlatform.watchos !== 100
-          || defaultManifest.modes.default.layers.middle.scalePercentByPlatform.ios !== 50
-          || defaultManifest.modes.default.layers.foreground.scalePercentByPlatform.ios !== 40) {
+          || defaultManifest.layerScaleBehavior.synchronizedAcrossPlatforms !== true
+          || defaultManifest.layerScaleBehavior.middleAndForegroundFit !== 'contain'
+          || defaultManifest.modes.default.layers.background.scalePercent !== 100
+          || defaultManifest.modes.default.layers.middle.scalePercent !== 108
+          || defaultManifest.modes.default.layers.foreground.scalePercent !== 88) {
           throw new Error('layer scales are missing from composition manifest');
         }
 
@@ -158,8 +145,13 @@
           throw new Error('Dark mode scale state leaked from Default mode');
         }
         setNumber(layerScaleNumber('foreground'), 80);
+        app.document.querySelector('[data-platform="tvos"]').click();
+        if (layerScaleNumber('foreground').value !== '80') {
+          throw new Error('Dark layer scale did not synchronize across platforms');
+        }
+        app.document.querySelector('[data-platform="ios"]').click();
         app.document.querySelector('[data-mode="default"]').click();
-        if (layerScaleNumber('foreground').value !== '40') {
+        if (layerScaleNumber('foreground').value !== '88') {
           throw new Error('Default layer scale was changed by Dark mode');
         }
         app.document.querySelector('[data-mode="dark"]').click();
@@ -206,7 +198,7 @@
 
         window.testZipBlob = download.blob;
         document.body.dataset.result = 'PASS';
-        document.body.textContent = 'platform-specific layer scaling and export flow passed';
+        document.body.textContent = 'cross-platform synchronized layer scaling and adaptive export flow passed';
       } catch (error) {
         document.body.dataset.result = 'FAIL';
         document.body.textContent = error.message;

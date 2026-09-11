@@ -15,6 +15,7 @@ const {
   coverageMargins,
   coverScaleForRotation,
   extensionForImage,
+  fittedLayerRect,
   iosContentsJson,
   pngUsesTransparency,
   requiredLayersReady,
@@ -68,6 +69,17 @@ assert.equal(enlargedLayer.y, -120);
 assert.equal(enlargedLayer.width, 1200);
 assert.equal(enlargedLayer.height, 720);
 assert.throws(() => centeredLayerRect(1024, 1024, 0));
+const tvContainedLayer = fittedLayerRect(1024, 1024, 800, 480, 100, 'contain');
+assert.equal(tvContainedLayer.x, 160);
+assert.equal(tvContainedLayer.y, 0);
+assert.equal(tvContainedLayer.width, 480);
+assert.equal(tvContainedLayer.height, 480);
+const tvCoveredLayer = fittedLayerRect(1024, 1024, 800, 480, 100, 'cover');
+assert.equal(tvCoveredLayer.x, 0);
+assert.equal(tvCoveredLayer.y, -160);
+assert.equal(tvCoveredLayer.width, 800);
+assert.equal(tvCoveredLayer.height, 800);
+assert.throws(() => fittedLayerRect(1024, 1024, 800, 480, 100, 'stretch'));
 assert.equal(sanitizeBaseName('../../My\\Icon.png'), 'My-Icon');
 assert.equal(sanitizeBaseName('...'), 'app-icon');
 

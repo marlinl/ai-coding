@@ -843,11 +843,11 @@
             <div class="layer-scale-head">
               <div>
                 <strong id="layerScaleTitle">分层缩放</strong>
-                <span class="layer-scale-context" id="layerScaleContext">Default · iOS / macOS</span>
+                <span class="layer-scale-context" id="layerScaleContext">Default · 跨平台同步</span>
               </div>
               <button class="layer-scale-reset" id="resetLayerScales" type="button">全部重置</button>
             </div>
-            <p class="layer-scale-note">每个模式、每个平台、每个图层分别保存缩放。</p>
+            <p class="layer-scale-note">一次调整同步所有平台，预览会按当前平台画布自动适配。</p>
             <div class="layer-scale-list">
               <div class="layer-scale-row">
                 <label class="layer-scale-name" for="backgroundLayerScale">背景层</label>
@@ -1026,6 +1026,28 @@
         };
       }
 
+      function fittedLayerRect(imageWidth, imageHeight, canvasWidth, canvasHeight, scalePercent, fit = 'contain') {
+        if ([imageWidth, imageHeight, canvasWidth, canvasHeight, scalePercent].some((value) => !Number.isFinite(value) || value <= 0)) {
+          throw new TypeError('Image, canvas, and scale values must be positive finite numbers.');
+        }
+        if (fit !== 'contain' && fit !== 'cover') {
+          throw new TypeError('Layer fit must be contain or cover.');
+        }
+
+        const fitScale = fit === 'cover'
+          ? Math.max(canvasWidth / imageWidth, canvasHeight / imageHeight)
+          : Math.min(canvasWidth / imageWidth, canvasHeight / imageHeight);
+        const scale = fitScale * scalePercent / 100;
+        const width = imageWidth * scale;
+        const height = imageHeight * scale;
+        return {
+          x: (canvasWidth - width) / 2,
+          y: (canvasHeight - height) / 2,
+          width,
+          height
+        };
+      }
+
       function sanitizeBaseName(fileName) {
         const withoutExtension = String(fileName || '').replace(/\.[^.]+$/, '');
         const normalized = withoutExtension
@@ -1133,6 +1155,7 @@
         coverageMargins,
         coverScaleForRotation,
         extensionForImage,
+        fittedLayerRect,
         iosContentsJson,
         pngUsesTransparency,
         requiredLayersReady,
@@ -1157,6 +1180,7 @@
       coverageMargins,
       coverScaleForRotation,
       extensionForImage,
+      fittedLayerRect,
       iosContentsJson,
       pngUsesTransparency,
       requiredLayersReady,
@@ -1208,7 +1232,6 @@
     const downloadMaskedPngButton = document.getElementById('downloadMaskedPng');
     const downloadZipButton = document.getElementById('downloadZip');
     const exportButtons = [downloadPngButton, downloadMaskedPngButton, downloadZipButton];
-    const PLATFORM_IDS = Object.freeze(['ios', 'tvos', 'watchos']);
 
     const makeTransform = () => ({
       scalePercent: 100,
@@ -1235,12 +1258,6 @@
       foreground: 100
     });
 
-    const makePlatformLayerScales = () => ({
-      ios: makeLayerScales(),
-      tvos: makeLayerScales(),
-      watchos: makeLayerScales()
-    });
-
     const makeCompositeCache = () => ({
       ios: null,
       tvos: null,
@@ -1260,8 +1277,8 @@
         dark: makePlatformTransforms()
       },
       layerScales: {
-        default: makePlatformLayerScales(),
-        dark: makePlatformLayerScales()
+        default: makeLayerScales(),
+        dark: makeLayerScales()
       },
       backgroundColors: {
         default: '#f5f5f7',
@@ -1325,7 +1342,7 @@
     }
 
     function currentLayerScales() {
-      return state.layerScales[state.modeId][state.platformId];
+      return state.layerScales[state.modeId];
     }
 
     function normalizedScalePercent(value, fallback) {
@@ -1403,10 +1420,9 @@
         return state.compositeCache[mode][platform.id];
       }
 
-      const artboard = sourceArtboard();
       const output = document.createElement('canvas');
-      output.width = artboard.width;
-      output.height = artboard.height;
+      output.width = platform.width;
+      output.height = platform.height;
       const outputContext = canvasContext(output, true);
       useHighQualitySmoothing(outputContext);
       outputContext.fillStyle = state.backgroundColors[mode];
@@ -1415,7 +1431,14 @@
       LAYER_IDS.forEach((layer) => {
         const source = effectiveLayer(mode, layer);
         if (source) {
-          const rect = centeredLayerRect(output.width, output.height, state.layerScales[mode][platform.id][layer]);
+          const rect = fittedLayerRect(
+            source.image.naturalWidth,
+            source.image.naturalHeight,
+            output.width,
+            output.height,
+            state.layerScales[mode][layer],
+            layer === 'background' ? 'cover' : 'contain'
+          );
           outputContext.drawImage(source.image, rect.x, rect.y, rect.width, rect.height);
         }
       });
@@ -1425,10 +1448,9 @@
     }
 
     function fittedCompositeScale(platform, mode, transform) {
-      const artboard = sourceArtboard();
       return coverScaleForRotation(
-        artboard.width,
-        artboard.height,
+        platform.width,
+        platform.height,
         platform.width,
         platform.height,
         transform.rotation
@@ -1601,8 +1623,7 @@
 
     function updateLayerScaleControls() {
       const scales = currentLayerScales();
-      const platformLabel = state.platformId === 'ios' ? 'iOS / macOS' : currentPlatform().label;
-      layerScaleContext.textContent = `${currentModeLabel()} · ${platformLabel}`;
+      layerScaleContext.textContent = `${currentModeLabel()} · 跨平台同步`;
 
       layerScaleInputs.forEach((input) => {
         const layer = input.dataset.layer;
@@ -1670,8 +1691,8 @@
         transform.rotation
       );
       const margins = coverageMargins({
-        imageWidth: artboard.width,
-        imageHeight: artboard.height,
+        imageWidth: platform.width,
+        imageHeight: platform.height,
         canvasWidth: platform.width,
         canvasHeight: platform.height,
         rotation: transform.rotation,
@@ -1692,13 +1713,13 @@
       const warnings = [];
 
       if (mismatched) {
-        warnings.push('有效图层尺寸不一致，预览已按背景画布对齐');
+        warnings.push('有效图层尺寸不一致，已分别按当前平台居中适配');
       }
       if (baseScale > 1 + EPSILON) {
-        warnings.push(`当前平台需放大 ${Math.round((baseScale - 1) * 100)}%`);
+        warnings.push(`背景层需放大 ${Math.round((baseScale - 1) * 100)}%`);
       }
       if (cropPercent >= 0.1) {
-        warnings.push(`当前平台会裁掉约 ${Math.round(cropPercent * 100)}% 源画布`);
+        warnings.push(`背景层会裁掉约 ${Math.round(cropPercent * 100)}% 源画布`);
       }
       if (margins.horizontal < -EPSILON || margins.vertical < -EPSILON) {
         warnings.push('当前缩放或位置未覆盖整个画布');
@@ -1787,7 +1808,7 @@
         if (mode === 'default' && layer === 'background') {
           state.fileName = sanitizeBaseName(file.name);
           MODE_IDS.forEach((modeId) => {
-            state.layerScales[modeId] = makePlatformLayerScales();
+            state.layerScales[modeId] = makeLayerScales();
             Object.keys(platforms).forEach((platformId) => {
               state.transforms[modeId][platformId] = makeTransform();
             });
@@ -1968,10 +1989,7 @@
             inheritedFrom: mode === 'dark' && !direct ? 'default' : null,
             width: effective.image.naturalWidth,
             height: effective.image.naturalHeight,
-            scalePercentByPlatform: Object.fromEntries(PLATFORM_IDS.map((platformId) => [
-              platformId,
-              state.layerScales[mode][platformId][layer]
-            ]))
+            scalePercent: state.layerScales[mode][layer]
           } : null;
         });
       });
@@ -1980,6 +1998,11 @@
         formatVersion: 2,
         artboard,
         modes,
+        layerScaleBehavior: {
+          synchronizedAcrossPlatforms: true,
+          backgroundFit: 'cover',
+          middleAndForegroundFit: 'contain'
+        },
         platformTransforms: state.transforms,
         note: 'Import the independent SVG or PNG layers into Apple Icon Composer, then save the final .icon file.'
       };
@@ -2058,7 +2081,7 @@
           'Previews：两个模式在 iOS/macOS、tvOS、watchOS 画布上的未遮罩、不透明 sRGB 标准 PNG。',
           'MaskedPreviews：模拟系统最终形状的透明 PNG，仅供展示，不可作为 Apple 提交资产。',
           'Xcode/iOS：传统 Asset Catalog 使用的 Default/Dark AppIcon.appiconset。',
-          'composition.json：图层来源、继承关系、各平台分层缩放、画布和预览变换。',
+          'composition.json：图层来源、继承关系、跨平台分层缩放、画布和预览变换。',
           '',
           '如需最新 Liquid Glass .icon 文件，请将 Layers 中的独立素材导入 Apple Icon Composer 后保存。'
         ].join('\n');
@@ -2148,7 +2171,7 @@
     });
 
     resetLayerScalesButton.addEventListener('click', () => {
-      state.layerScales[state.modeId][state.platformId] = makeLayerScales();
+      state.layerScales[state.modeId] = makeLayerScales();
       invalidateComposites(state.modeId);
       redraw();
     });
