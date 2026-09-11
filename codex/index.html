@@ -992,9 +992,9 @@
               <tr><td>Release/iOS</td><td>Default、Dark 各 10 张最终尺寸 PNG</td><td>iOS 开发</td></tr>
               <tr><td>Release/tvOS</td><td>Default、Dark 各 10 张最终尺寸 PNG</td><td>tvOS 开发</td></tr>
               <tr><td>Release/watchOS</td><td>Default、Dark 各 10 张最终尺寸 PNG</td><td>watchOS 开发</td></tr>
-              <tr><td>Source/Original</td><td>保留设计师上传的 SVG/PNG 原稿</td><td>设计师</td></tr>
+              <tr><td>Preview/Original</td><td>保留设计师上传的 SVG/PNG 原稿</td><td>设计师</td></tr>
               <tr><td>Preview/Masked</td><td>评审最终外形，不用于 Apple 提交</td><td>产品、设计</td></tr>
-              <tr><td>Docs</td><td>查看构图参数、继承关系和目录说明</td><td>设计、开发</td></tr>
+              <tr><td>Preview/Docs</td><td>查看构图参数、继承关系和目录说明</td><td>设计、开发</td></tr>
             </tbody>
           </table>
 
@@ -1215,7 +1215,6 @@
       releaseIconVariants,
       requiredLayersReady,
       resolveLayer,
-      sanitizeBaseName,
       sourceCropPercent
     } = window.IconCore;
 
@@ -1295,7 +1294,6 @@
     const state = {
       modeId: 'default',
       platformId: 'ios',
-      fileName: 'app-icon',
       sources: {
         default: makeLayerSlots(),
         dark: makeLayerSlots()
@@ -1909,7 +1907,6 @@
           extension: extensionForImage(file)
         };
         if (mode === 'default' && layer === 'background') {
-          state.fileName = sanitizeBaseName(file.name);
           MODE_IDS.forEach((modeId) => {
             state.layerScales[modeId] = makeLayerScales();
             Object.keys(platforms).forEach((platformId) => {
@@ -2090,7 +2087,7 @@
           const exportedName = `${String(LAYER_IDS.indexOf(layer) + 1).padStart(2, '0')}-${layer}.${effective?.extension || 'png'}`;
           modes[mode].layers[layer] = effective ? {
             sourceFile: effective.file.name,
-            exportedAs: `Source/Original/${modeName}/${exportedName}`,
+            exportedAs: `Preview/Original/${modeName}/${exportedName}`,
             inheritedFrom: mode === 'dark' && !direct ? 'default' : null,
             width: effective.image.naturalWidth,
             height: effective.image.naturalHeight,
@@ -2114,7 +2111,7 @@
       };
     }
 
-    function sourceLayerEntries(prefix) {
+    function originalPreviewEntries(prefix) {
       const entries = [];
       MODE_IDS.forEach((mode) => {
         LAYER_IDS.forEach((layer, index) => {
@@ -2175,13 +2172,13 @@
         'Release：最终开发交付，仅按 iOS、tvOS、watchOS 三个平台分目录，目录内只包含最终 PNG。',
         '每个平台的 Default 与 Dark 各输出 10 张：16、32、128、256、512 pt 分别提供 1x 和 2x。',
         '文件名中的 pt 与 @1x/@2x 用于匹配 Xcode 尺寸槽；同像素尺寸仍保留为不同文件，避免槽位混淆。',
-        'Source/Original：设计师上传的原始 SVG/PNG；Dark 继承的图层会复制 Default 素材。',
+        'Preview/Original：设计师上传的原始 SVG/PNG；Dark 继承的图层会复制 Default 素材。',
         'Preview/Masked：模拟设备最终外形的透明 PNG，仅供评审与展示，不可作为 Apple 提交资产。',
-        'Docs/composition.json：图层来源、继承关系、跨平台缩放、画布和整体变换参数。',
-        'Docs/DIRECTORY-GUIDE.md：目录、使用场景和使用方说明。',
+        'Preview/Docs/composition.json：图层来源、继承关系、跨平台缩放、画布和整体变换参数。',
+        'Preview/Docs/DIRECTORY-GUIDE.md：目录、使用场景和使用方说明。',
         '',
         'App Store 审核接收的是通过 Xcode 构建提交的 App，不直接接收本 ZIP。',
-        '不要将 Source、Preview 或 Docs 中的文件放入 Xcode App Icon 尺寸槽。'
+        '不要将 Preview 中的文件放入 Xcode App Icon 尺寸槽。'
       ].join('\n');
     }
 
@@ -2194,9 +2191,9 @@
         '| `Release/iOS` | Default、Dark 各 10 张最终尺寸 PNG | iOS 开发 |',
         '| `Release/tvOS` | Default、Dark 各 10 张最终尺寸 PNG | tvOS 开发 |',
         '| `Release/watchOS` | Default、Dark 各 10 张最终尺寸 PNG | watchOS 开发 |',
-        '| `Source/Original` | 保留设计师上传的 SVG/PNG 原稿 | 设计师 |',
+        '| `Preview/Original` | 保留设计师上传的 SVG/PNG 原稿 | 设计师 |',
         '| `Preview/Masked` | 评审最终外形，不用于 Apple 提交 | 产品、设计 |',
-        '| `Docs` | 查看构图参数、继承关系和目录说明 | 设计、开发 |'
+        '| `Preview/Docs` | 查看构图参数、继承关系和目录说明 | 设计、开发 |'
       ].join('\n');
     }
 
@@ -2213,23 +2210,23 @@
       try {
         const entries = await releaseEntries();
         entries.push(
-          ...sourceLayerEntries('Source/Original/'),
+          ...originalPreviewEntries('Preview/Original/'),
           ...(await maskedPreviewEntries('Preview/Masked/')),
           {
-            path: 'Docs/composition.json',
+            path: 'Preview/Docs/composition.json',
             blob: textBlob(JSON.stringify(compositionManifest(), null, 2))
           },
           {
-            path: 'Docs/README.txt',
+            path: 'Preview/Docs/README.txt',
             blob: textBlob(`${packageReadme()}\n`, 'text/plain;charset=utf-8')
           },
           {
-            path: 'Docs/DIRECTORY-GUIDE.md',
+            path: 'Preview/Docs/DIRECTORY-GUIDE.md',
             blob: textBlob(`${directoryGuide()}\n`, 'text/markdown;charset=utf-8')
           }
         );
         const zip = await createZip(entries);
-        downloadBlob(zip, `${state.fileName}-apple-icon.zip`);
+        downloadBlob(zip, 'AppIcon.zip');
         setStatus('统一 ZIP 已生成。', 'success');
       } catch (error) {
         console.error(error);

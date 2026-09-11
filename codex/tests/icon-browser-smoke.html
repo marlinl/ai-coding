@@ -247,7 +247,7 @@
         app.document.getElementById('downloadZip').click();
         await waitFor(() => downloads.length === 1, 'unified ZIP download was not produced');
         document.body.dataset.step = 'zip-created';
-        if (!downloads[0].filename.endsWith('-apple-icon.zip')) {
+        if (downloads[0].filename !== 'AppIcon.zip') {
           throw new Error('unified ZIP filename is incorrect');
         }
         const zipText = new TextDecoder().decode(new Uint8Array(await downloads[0].blob.arrayBuffer()));
@@ -257,14 +257,14 @@
           'Release/iOS/AppIcon-Dark-512pt@2x.png',
           'Release/tvOS/AppIcon-Default-128pt@2x.png',
           'Release/watchOS/AppIcon-Dark-256pt@1x.png',
-          'Source/Original/Default/01-background.svg',
-          'Source/Original/Default/02-middle.svg',
-          'Source/Original/Dark/03-foreground.svg',
+          'Preview/Original/Default/01-background.svg',
+          'Preview/Original/Default/02-middle.svg',
+          'Preview/Original/Dark/03-foreground.svg',
           'Preview/Masked/iOS/AppIcon-Default-Masked-1024x1024.png',
           'Preview/Masked/watchOS/AppIcon-Dark-Masked-1088x1088.png',
-          'Docs/composition.json',
-          'Docs/README.txt',
-          'Docs/DIRECTORY-GUIDE.md'
+          'Preview/Docs/composition.json',
+          'Preview/Docs/README.txt',
+          'Preview/Docs/DIRECTORY-GUIDE.md'
         ].forEach((path) => {
           if (!zipText.includes(path)) {
             throw new Error(`unified ZIP is missing ${path}`);
@@ -277,7 +277,8 @@
           'Release/README.txt',
           'Release/iOS-macOS/',
           'Release/iOS/AppIcon.appiconset/',
-          'Release/iOS/Contents.json'
+          'Release/iOS/Contents.json',
+          'Source/'
         ].forEach((path) => {
           if (zipText.includes(path)) {
             throw new Error(`unified ZIP contains legacy release path ${path}`);
