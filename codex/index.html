@@ -325,6 +325,14 @@
       font-size: 13px;
     }
 
+    .layer-scale-context {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 560;
+    }
+
     .layer-scale-reset {
       min-height: 28px;
       padding: 4px 8px;
@@ -349,7 +357,7 @@
       gap: 8px;
     }
 
-    .layer-scale-row span {
+    .layer-scale-name {
       flex: 0 0 42px;
       color: #344054;
       font-size: 12px;
@@ -360,16 +368,46 @@
       min-width: 0;
     }
 
-    .layer-scale-row output {
-      flex: 0 0 40px;
+    .number-field {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel);
       color: var(--muted);
       font-size: 11px;
       font-variant-numeric: tabular-nums;
+    }
+
+    .number-field:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-soft);
+    }
+
+    .number-field input {
+      width: 54px;
+      padding: 4px 2px 4px 7px;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: #344054;
+      font: inherit;
+      font-weight: 650;
       text-align: right;
     }
 
+    .number-field span {
+      padding-right: 7px;
+    }
+
+    .layer-scale-row .number-field {
+      flex: 0 0 74px;
+    }
+
     .layer-scale-row input:disabled,
-    .layer-scale-reset:disabled {
+    .layer-scale-reset:disabled,
+    .number-field:has(input:disabled) {
       cursor: not-allowed;
       opacity: 0.42;
     }
@@ -803,33 +841,48 @@
 
           <section class="layer-scale-panel" aria-labelledby="layerScaleTitle">
             <div class="layer-scale-head">
-              <strong id="layerScaleTitle"><span id="layerScaleMode">Default</span> 分层缩放</strong>
+              <div>
+                <strong id="layerScaleTitle">分层缩放</strong>
+                <span class="layer-scale-context" id="layerScaleContext">Default · iOS / macOS</span>
+              </div>
               <button class="layer-scale-reset" id="resetLayerScales" type="button">全部重置</button>
             </div>
-            <p class="layer-scale-note">分别缩放当前模式的图层；切换平台时保持不变。</p>
+            <p class="layer-scale-note">每个模式、每个平台、每个图层分别保存缩放。</p>
             <div class="layer-scale-list">
-              <label class="layer-scale-row">
-                <span>背景层</span>
-                <input class="layer-scale-input" type="range" min="10" max="320" value="100" data-layer="background">
-                <output class="layer-scale-value" data-layer="background">100%</output>
-              </label>
-              <label class="layer-scale-row">
-                <span>中景层</span>
-                <input class="layer-scale-input" type="range" min="10" max="320" value="100" data-layer="middle" disabled>
-                <output class="layer-scale-value" data-layer="middle">100%</output>
-              </label>
-              <label class="layer-scale-row">
-                <span>前景层</span>
-                <input class="layer-scale-input" type="range" min="10" max="320" value="100" data-layer="foreground">
-                <output class="layer-scale-value" data-layer="foreground">100%</output>
-              </label>
+              <div class="layer-scale-row">
+                <label class="layer-scale-name" for="backgroundLayerScale">背景层</label>
+                <input class="layer-scale-input" id="backgroundLayerScale" type="range" min="10" max="320" value="100" data-layer="background">
+                <label class="number-field">
+                  <input class="layer-scale-number" type="number" min="10" max="320" step="1" value="100" data-layer="background" aria-label="背景层缩放百分比">
+                  <span>%</span>
+                </label>
+              </div>
+              <div class="layer-scale-row">
+                <label class="layer-scale-name" for="middleLayerScale">中景层</label>
+                <input class="layer-scale-input" id="middleLayerScale" type="range" min="10" max="320" value="100" data-layer="middle" disabled>
+                <label class="number-field">
+                  <input class="layer-scale-number" type="number" min="10" max="320" step="1" value="100" data-layer="middle" aria-label="中景层缩放百分比" disabled>
+                  <span>%</span>
+                </label>
+              </div>
+              <div class="layer-scale-row">
+                <label class="layer-scale-name" for="foregroundLayerScale">前景层</label>
+                <input class="layer-scale-input" id="foregroundLayerScale" type="range" min="10" max="320" value="100" data-layer="foreground">
+                <label class="number-field">
+                  <input class="layer-scale-number" type="number" min="10" max="320" step="1" value="100" data-layer="foreground" aria-label="前景层缩放百分比">
+                  <span>%</span>
+                </label>
+              </div>
             </div>
           </section>
 
           <div class="control">
             <div class="control-row">
               <label for="scale">整体缩放（当前平台）</label>
-              <output id="scaleValue">100%</output>
+              <label class="number-field">
+                <input id="scaleNumber" type="number" min="10" max="320" step="1" value="100" aria-label="整体缩放百分比">
+                <span>%</span>
+              </label>
             </div>
             <input id="scale" type="range" min="10" max="320" value="100">
           </div>
@@ -857,7 +910,8 @@
               <button class="button secondary" id="fitButton" type="button">适配画布</button>
               <button class="button secondary" id="resetButton" type="button">重置位置</button>
             </div>
-            <button class="button secondary" id="downloadPng" type="button" disabled>下载当前预览 PNG</button>
+            <button class="button secondary" id="downloadPng" type="button" disabled>下载标准 PNG</button>
+            <button class="button secondary" id="downloadMaskedPng" type="button" disabled>下载模拟遮罩预览 PNG</button>
             <button class="button" id="downloadZip" type="button" disabled>下载完整图层 ZIP</button>
           </div>
 
@@ -890,8 +944,8 @@
             <li><b>图层输入</b><span>背景与前景必需，中景可选；支持 SVG 和 PNG。</span></li>
             <li><b>Dark 模式</b><span>未上传的 Dark 图层自动继承 Default，对应模式可即时预览。</span></li>
             <li><b>Apple 基准</b><span id="specBase">iOS、iPadOS、macOS 使用 1024 × 1024 px 正方形画布。</span></li>
-            <li><b>遮罩</b><span id="specMask">轮廓仅供构图预览，导出文件不包含遮罩。</span></li>
-            <li><b>ZIP 内容</b><span>独立图层、Default/Dark 合成 PNG、构图配置和 iOS AppIcon.appiconset。</span></li>
+            <li><b>遮罩</b><span id="specMask">正式资产不预裁切；模拟遮罩 PNG 仅供展示。</span></li>
+            <li><b>ZIP 内容</b><span>独立图层、标准与模拟遮罩预览 PNG、构图配置和 iOS AppIcon.appiconset。</span></li>
             <li><b>最终交付</b><span>将独立图层导入 Icon Composer，并由它保存正式 .icon 文件。</span></li>
           </ul>
 
@@ -1134,14 +1188,14 @@
     const fileInputs = Array.from(document.querySelectorAll('.file-input'));
     const clearButtons = Array.from(document.querySelectorAll('.clear-layer'));
     const layerScaleInputs = Array.from(document.querySelectorAll('.layer-scale-input'));
-    const layerScaleValues = Array.from(document.querySelectorAll('.layer-scale-value'));
-    const layerScaleMode = document.getElementById('layerScaleMode');
+    const layerScaleNumbers = Array.from(document.querySelectorAll('.layer-scale-number'));
+    const layerScaleContext = document.getElementById('layerScaleContext');
     const resetLayerScalesButton = document.getElementById('resetLayerScales');
     const scaleInput = document.getElementById('scale');
+    const scaleNumberInput = document.getElementById('scaleNumber');
     const rotationInput = document.getElementById('rotation');
     const backgroundColorInput = document.getElementById('backgroundColor');
     const maskPreviewInput = document.getElementById('maskPreview');
-    const scaleValue = document.getElementById('scaleValue');
     const rotationValue = document.getElementById('rotationValue');
     const statusEl = document.getElementById('status');
     const emptyState = document.getElementById('emptyState');
@@ -1151,8 +1205,10 @@
     const specBase = document.getElementById('specBase');
     const specMask = document.getElementById('specMask');
     const downloadPngButton = document.getElementById('downloadPng');
+    const downloadMaskedPngButton = document.getElementById('downloadMaskedPng');
     const downloadZipButton = document.getElementById('downloadZip');
-    const exportButtons = [downloadPngButton, downloadZipButton];
+    const exportButtons = [downloadPngButton, downloadMaskedPngButton, downloadZipButton];
+    const PLATFORM_IDS = Object.freeze(['ios', 'tvos', 'watchos']);
 
     const makeTransform = () => ({
       scalePercent: 100,
@@ -1179,6 +1235,18 @@
       foreground: 100
     });
 
+    const makePlatformLayerScales = () => ({
+      ios: makeLayerScales(),
+      tvos: makeLayerScales(),
+      watchos: makeLayerScales()
+    });
+
+    const makeCompositeCache = () => ({
+      ios: null,
+      tvos: null,
+      watchos: null
+    });
+
     const state = {
       modeId: 'default',
       platformId: 'ios',
@@ -1192,16 +1260,16 @@
         dark: makePlatformTransforms()
       },
       layerScales: {
-        default: makeLayerScales(),
-        dark: makeLayerScales()
+        default: makePlatformLayerScales(),
+        dark: makePlatformLayerScales()
       },
       backgroundColors: {
         default: '#f5f5f7',
         dark: '#1c1c1e'
       },
       compositeCache: {
-        default: null,
-        dark: null
+        default: makeCompositeCache(),
+        dark: makeCompositeCache()
       },
       exporting: false,
       dragging: false,
@@ -1257,7 +1325,26 @@
     }
 
     function currentLayerScales() {
-      return state.layerScales[state.modeId];
+      return state.layerScales[state.modeId][state.platformId];
+    }
+
+    function normalizedScalePercent(value, fallback) {
+      const parsed = String(value).trim() === '' ? NaN : Number(value);
+      if (!Number.isFinite(parsed)) return fallback;
+      return Math.min(320, Math.max(10, Math.round(parsed)));
+    }
+
+    function setCurrentLayerScale(layer, value) {
+      const scales = currentLayerScales();
+      scales[layer] = normalizedScalePercent(value, scales[layer]);
+      invalidateComposites(state.modeId);
+      redraw();
+    }
+
+    function setCurrentOverallScale(value) {
+      const transform = currentTransform();
+      transform.scalePercent = normalizedScalePercent(value, transform.scalePercent);
+      redraw();
     }
 
     function effectiveLayer(mode, layer) {
@@ -1305,15 +1392,15 @@
     }
 
     function invalidateComposites(mode) {
-      state.compositeCache[mode] = null;
+      state.compositeCache[mode] = makeCompositeCache();
       if (mode === 'default') {
-        state.compositeCache.dark = null;
+        state.compositeCache.dark = makeCompositeCache();
       }
     }
 
-    function buildComposite(mode) {
-      if (state.compositeCache[mode]) {
-        return state.compositeCache[mode];
+    function buildComposite(mode, platform) {
+      if (state.compositeCache[mode][platform.id]) {
+        return state.compositeCache[mode][platform.id];
       }
 
       const artboard = sourceArtboard();
@@ -1328,12 +1415,12 @@
       LAYER_IDS.forEach((layer) => {
         const source = effectiveLayer(mode, layer);
         if (source) {
-          const rect = centeredLayerRect(output.width, output.height, state.layerScales[mode][layer]);
+          const rect = centeredLayerRect(output.width, output.height, state.layerScales[mode][platform.id][layer]);
           outputContext.drawImage(source.image, rect.x, rect.y, rect.width, rect.height);
         }
       });
 
-      state.compositeCache[mode] = output;
+      state.compositeCache[mode][platform.id] = output;
       return output;
     }
 
@@ -1405,13 +1492,7 @@
 
       if (maskPreviewInput.checked) {
         context.save();
-        if (platform.guide === 'watchos') {
-          context.beginPath();
-          context.arc(centerX, centerY, minSide / 2, 0, Math.PI * 2);
-          context.closePath();
-        } else {
-          drawRoundedRect(context, 0, 0, width, height, platform.guide === 'tvos' ? minSide * 0.08 : minSide * 0.2237);
-        }
+        traceIconMask(context, width, height, platform);
         context.strokeStyle = 'rgba(17, 24, 39, 0.58)';
         context.setLineDash([minSide * 0.018, minSide * 0.012]);
         context.lineWidth = Math.max(2, minSide / 256);
@@ -1442,7 +1523,7 @@
       outputContext.fillRect(0, 0, width, height);
 
       if (hasAnyEffectiveLayer(mode)) {
-        const source = buildComposite(mode);
+        const source = buildComposite(mode, platform);
         outputContext.save();
         outputContext.translate(width / 2 + transform.offsetX * ratioX, height / 2 + transform.offsetY * ratioY);
         outputContext.rotate(transform.rotation * Math.PI / 180);
@@ -1456,6 +1537,35 @@
         drawGuides(outputContext, width, height, platform);
       }
 
+      return output;
+    }
+
+    function traceIconMask(context, width, height, platform) {
+      const minSide = Math.min(width, height);
+      if (platform.guide === 'watchos') {
+        context.beginPath();
+        context.arc(width / 2, height / 2, minSide / 2, 0, Math.PI * 2);
+        context.closePath();
+      } else {
+        drawRoundedRect(context, 0, 0, width, height, platform.guide === 'tvos' ? minSide * 0.08 : minSide * 0.2237);
+      }
+    }
+
+    function renderMaskedPreview({
+      mode = state.modeId,
+      platform = currentPlatform(),
+      width = platform.width,
+      height = platform.height
+    } = {}) {
+      const standard = renderIcon({ mode, platform, width, height });
+      const output = document.createElement('canvas');
+      output.width = width;
+      output.height = height;
+      const outputContext = canvasContext(output);
+      useHighQualitySmoothing(outputContext);
+      traceIconMask(outputContext, width, height, platform);
+      outputContext.clip();
+      outputContext.drawImage(standard, 0, 0);
       return output;
     }
 
@@ -1491,7 +1601,8 @@
 
     function updateLayerScaleControls() {
       const scales = currentLayerScales();
-      layerScaleMode.textContent = currentModeLabel();
+      const platformLabel = state.platformId === 'ios' ? 'iOS / macOS' : currentPlatform().label;
+      layerScaleContext.textContent = `${currentModeLabel()} · ${platformLabel}`;
 
       layerScaleInputs.forEach((input) => {
         const layer = input.dataset.layer;
@@ -1500,8 +1611,11 @@
         input.setAttribute('aria-label', `${currentModeLabel()} ${layer === 'background' ? '背景层' : layer === 'middle' ? '中景层' : '前景层'}缩放`);
       });
 
-      layerScaleValues.forEach((output) => {
-        output.textContent = `${scales[output.dataset.layer]}%`;
+      layerScaleNumbers.forEach((input) => {
+        const layer = input.dataset.layer;
+        input.value = scales[layer];
+        input.disabled = !effectiveLayer(state.modeId, layer);
+        input.setAttribute('aria-label', `${currentModeLabel()} ${layer === 'background' ? '背景层' : layer === 'middle' ? '中景层' : '前景层'}缩放百分比`);
       });
 
       resetLayerScalesButton.disabled = !hasAnyEffectiveLayer(state.modeId);
@@ -1623,10 +1737,11 @@
       specMask.textContent = platform.specMask;
       backgroundColorInput.value = state.backgroundColors[state.modeId];
       scaleInput.value = transform.scalePercent;
+      scaleNumberInput.value = transform.scalePercent;
       rotationInput.value = transform.rotation;
-      scaleValue.textContent = `${transform.scalePercent}%`;
       rotationValue.textContent = `${transform.rotation}°`;
-      downloadPngButton.textContent = `下载 ${currentModeLabel()} ${platform.label} PNG`;
+      downloadPngButton.textContent = `下载 ${currentModeLabel()} ${platform.label} 标准 PNG`;
+      downloadMaskedPngButton.textContent = `下载 ${currentModeLabel()} ${platform.label} 模拟遮罩 PNG`;
 
       updateTabs();
       updateLayerCards();
@@ -1672,7 +1787,7 @@
         if (mode === 'default' && layer === 'background') {
           state.fileName = sanitizeBaseName(file.name);
           MODE_IDS.forEach((modeId) => {
-            state.layerScales[modeId] = makeLayerScales();
+            state.layerScales[modeId] = makePlatformLayerScales();
             Object.keys(platforms).forEach((platformId) => {
               state.transforms[modeId][platformId] = makeTransform();
             });
@@ -1717,7 +1832,7 @@
       };
     }
 
-    function canvasToBlob(sourceCanvas) {
+    function canvasToBlob(sourceCanvas, { allowTransparency = false } = {}) {
       return new Promise((resolve, reject) => {
         sourceCanvas.toBlob(async (blob) => {
           if (!blob) {
@@ -1727,7 +1842,7 @@
 
           try {
             const bytes = new Uint8Array(await blob.arrayBuffer());
-            if (pngUsesTransparency(bytes)) {
+            if (!allowTransparency && pngUsesTransparency(bytes)) {
               reject(new Error('浏览器生成的 PNG 含透明通道，已阻止导出。'));
               return;
             }
@@ -1853,13 +1968,16 @@
             inheritedFrom: mode === 'dark' && !direct ? 'default' : null,
             width: effective.image.naturalWidth,
             height: effective.image.naturalHeight,
-            scalePercent: state.layerScales[mode][layer]
+            scalePercentByPlatform: Object.fromEntries(PLATFORM_IDS.map((platformId) => [
+              platformId,
+              state.layerScales[mode][platformId][layer]
+            ]))
           } : null;
         });
       });
 
       return {
-        formatVersion: 1,
+        formatVersion: 2,
         artboard,
         modes,
         platformTransforms: state.transforms,
@@ -1890,9 +2008,14 @@
         for (const mode of MODE_IDS) {
           const modeName = mode === 'dark' ? 'Dark' : 'Default';
           const preview = renderIcon({ mode, platform });
+          const maskedPreview = renderMaskedPreview({ mode, platform });
           entries.push({
             path: `${prefix}Previews/${platform.label}/AppIcon-${modeName}-${platform.width}x${platform.height}.png`,
             blob: await canvasToBlob(preview)
+          });
+          entries.push({
+            path: `${prefix}MaskedPreviews/${platform.label}/AppIcon-${modeName}-Masked-${platform.width}x${platform.height}.png`,
+            blob: await canvasToBlob(maskedPreview, { allowTransparency: true })
           });
         }
       }
@@ -1932,9 +2055,10 @@
           'Apple App Icon 图层包',
           '',
           'Layers：Default 与 Dark 的独立 SVG/PNG 图层；Dark 未覆盖的图层已复制 Default 素材。',
-          'Previews：两个模式在 iOS/macOS、tvOS、watchOS 画布上的不透明 sRGB 合成 PNG。',
+          'Previews：两个模式在 iOS/macOS、tvOS、watchOS 画布上的未遮罩、不透明 sRGB 标准 PNG。',
+          'MaskedPreviews：模拟系统最终形状的透明 PNG，仅供展示，不可作为 Apple 提交资产。',
           'Xcode/iOS：传统 Asset Catalog 使用的 Default/Dark AppIcon.appiconset。',
-          'composition.json：图层来源、继承关系、分层缩放、画布和预览变换。',
+          'composition.json：图层来源、继承关系、各平台分层缩放、画布和预览变换。',
           '',
           '如需最新 Liquid Glass .icon 文件，请将 Layers 中的独立素材导入 Apple Icon Composer 后保存。'
         ].join('\n');
@@ -2013,21 +2137,28 @@
 
     layerScaleInputs.forEach((input) => {
       input.addEventListener('input', () => {
-        currentLayerScales()[input.dataset.layer] = Number(input.value);
-        invalidateComposites(state.modeId);
-        redraw();
+        setCurrentLayerScale(input.dataset.layer, input.value);
+      });
+    });
+
+    layerScaleNumbers.forEach((input) => {
+      input.addEventListener('change', () => {
+        setCurrentLayerScale(input.dataset.layer, input.value);
       });
     });
 
     resetLayerScalesButton.addEventListener('click', () => {
-      state.layerScales[state.modeId] = makeLayerScales();
+      state.layerScales[state.modeId][state.platformId] = makeLayerScales();
       invalidateComposites(state.modeId);
       redraw();
     });
 
     scaleInput.addEventListener('input', () => {
-      currentTransform().scalePercent = Number(scaleInput.value);
-      redraw();
+      setCurrentOverallScale(scaleInput.value);
+    });
+
+    scaleNumberInput.addEventListener('change', () => {
+      setCurrentOverallScale(scaleNumberInput.value);
     });
 
     rotationInput.addEventListener('input', () => {
@@ -2061,6 +2192,28 @@
       } catch (error) {
         console.error(error);
         setStatus(`PNG 生成失败：${error.message}`, 'warning');
+      } finally {
+        state.exporting = false;
+        updateExportButtons();
+      }
+    });
+
+    downloadMaskedPngButton.addEventListener('click', async () => {
+      if (!isCompositionReady() || state.exporting) return;
+      state.exporting = true;
+      updateExportButtons();
+      setStatus('正在生成模拟遮罩预览 PNG...');
+
+      try {
+        const platform = currentPlatform();
+        const modeName = currentModeLabel();
+        const preview = renderMaskedPreview({ mode: state.modeId, platform });
+        const blob = await canvasToBlob(preview, { allowTransparency: true });
+        downloadBlob(blob, `${state.fileName}-AppIcon-${modeName}-${platform.width}x${platform.height}-MaskedPreview.png`);
+        setStatus('模拟遮罩预览 PNG 已生成；此文件仅供展示，不可作为 Apple 提交资产。', 'success');
+      } catch (error) {
+        console.error(error);
+        setStatus(`模拟遮罩 PNG 生成失败：${error.message}`, 'warning');
       } finally {
         state.exporting = false;
         updateExportButtons();

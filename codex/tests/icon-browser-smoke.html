@@ -43,19 +43,28 @@
         await waitFor(() => !app.document.getElementById('downloadZip').disabled, 'required layers did not enable export');
 
         const layerScaleInput = (layer) => app.document.querySelector(`.layer-scale-input[data-layer="${layer}"]`);
-        const setRange = (input, value) => {
+        const layerScaleNumber = (layer) => app.document.querySelector(`.layer-scale-number[data-layer="${layer}"]`);
+        const setNumber = (input, value) => {
           input.value = value;
-          input.dispatchEvent(new app.Event('input', { bubbles: true }));
+          input.dispatchEvent(new app.Event('change', { bubbles: true }));
         };
         if (!layerScaleInput('middle').disabled) {
           throw new Error('missing optional middle layer scale should be disabled');
         }
+        if (!layerScaleNumber('middle').disabled) {
+          throw new Error('missing optional middle layer number should be disabled');
+        }
 
         app.loadLayerFile('default', 'middle', new app.File([middleSvg], 'middle.svg', { type: 'image/svg+xml' }));
         await waitFor(() => !layerScaleInput('middle').disabled, 'middle layer scale did not enable');
-        setRange(layerScaleInput('background'), 60);
-        setRange(layerScaleInput('middle'), 50);
-        setRange(layerScaleInput('foreground'), 40);
+        setNumber(layerScaleNumber('background'), 60);
+        setNumber(layerScaleNumber('middle'), 50);
+        setNumber(layerScaleNumber('foreground'), 40);
+        if (layerScaleInput('background').value !== '60'
+          || layerScaleInput('middle').value !== '50'
+          || layerScaleInput('foreground').value !== '40') {
+          throw new Error('numeric layer scales did not synchronize sliders');
+        }
 
         const separatedPreview = app.renderIcon();
         const separatedContext = separatedPreview.getContext('2d');
@@ -74,35 +83,87 @@
         }
 
         const overallScale = app.document.getElementById('scale');
-        setRange(overallScale, 120);
+        const overallScaleNumber = app.document.getElementById('scaleNumber');
+        setNumber(overallScaleNumber, 120);
+        if (overallScale.value !== '120') {
+          throw new Error('numeric overall scale did not synchronize slider');
+        }
         const overallPreview = app.renderIcon();
         const overallPixel = Array.from(overallPreview.getContext('2d').getImageData(800, 512, 1, 1).data);
         if (overallPixel.slice(0, 3).join(',') !== '255,59,48') {
           throw new Error('overall scale no longer affects the combined icon');
         }
 
+        app.document.querySelector('[data-platform="tvos"]').click();
+        if (layerScaleNumber('background').value !== '100'
+          || layerScaleNumber('middle').value !== '100'
+          || layerScaleNumber('foreground').value !== '100'
+          || overallScaleNumber.value !== '100') {
+          throw new Error('tvOS scale state leaked from iOS');
+        }
+        setNumber(layerScaleNumber('background'), 70);
+        setNumber(layerScaleNumber('middle'), 60);
+        setNumber(layerScaleNumber('foreground'), 50);
+        setNumber(overallScaleNumber, 110);
+
+        app.document.querySelector('[data-platform="ios"]').click();
+        if (layerScaleNumber('background').value !== '60'
+          || layerScaleNumber('middle').value !== '50'
+          || layerScaleNumber('foreground').value !== '40'
+          || overallScaleNumber.value !== '120') {
+          throw new Error('iOS scale state was not preserved');
+        }
+        app.document.querySelector('[data-platform="tvos"]').click();
+        if (layerScaleNumber('background').value !== '70'
+          || layerScaleNumber('middle').value !== '60'
+          || layerScaleNumber('foreground').value !== '50'
+          || overallScaleNumber.value !== '110') {
+          throw new Error('tvOS scale state was not preserved');
+        }
+        const tvPreview = app.renderIcon();
+        const tvPixel = Array.from(tvPreview.getContext('2d').getImageData(100, 240, 1, 1).data);
+        if (tvPixel.slice(0, 3).join(',') !== '10,132,255') {
+          throw new Error('tvOS render did not use its platform-specific layer scales');
+        }
+        app.document.querySelector('[data-platform="watchos"]').click();
+        if (layerScaleNumber('background').value !== '100'
+          || layerScaleNumber('middle').value !== '100'
+          || layerScaleNumber('foreground').value !== '100'
+          || overallScaleNumber.value !== '100') {
+          throw new Error('watchOS scale state leaked from another platform');
+        }
+        const watchPreview = app.renderIcon();
+        const watchPixel = Array.from(watchPreview.getContext('2d').getImageData(10, 10, 1, 1).data);
+        if (watchPixel.slice(0, 3).join(',') !== '255,59,48') {
+          throw new Error('watchOS render did not use its platform-specific layer scales');
+        }
+
         const defaultManifest = app.compositionManifest();
-        if (defaultManifest.modes.default.layers.background.scalePercent !== 60
-          || defaultManifest.modes.default.layers.middle.scalePercent !== 50
-          || defaultManifest.modes.default.layers.foreground.scalePercent !== 40) {
+        if (defaultManifest.formatVersion !== 2
+          || defaultManifest.modes.default.layers.background.scalePercentByPlatform.ios !== 60
+          || defaultManifest.modes.default.layers.background.scalePercentByPlatform.tvos !== 70
+          || defaultManifest.modes.default.layers.background.scalePercentByPlatform.watchos !== 100
+          || defaultManifest.modes.default.layers.middle.scalePercentByPlatform.ios !== 50
+          || defaultManifest.modes.default.layers.foreground.scalePercentByPlatform.ios !== 40) {
           throw new Error('layer scales are missing from composition manifest');
         }
 
+        app.document.querySelector('[data-platform="ios"]').click();
         app.document.querySelector('[data-mode="dark"]').click();
         const inheritedCard = app.document.querySelector('[data-card-mode="dark"][data-card-layer="background"]');
         if (!inheritedCard.classList.contains('inherited') || !inheritedCard.textContent.includes('继承 Default')) {
           throw new Error('Dark mode did not inherit Default layers');
         }
-        if (layerScaleInput('foreground').value !== '100' || overallScale.value !== '100') {
+        if (layerScaleNumber('foreground').value !== '100' || overallScaleNumber.value !== '100') {
           throw new Error('Dark mode scale state leaked from Default mode');
         }
-        setRange(layerScaleInput('foreground'), 80);
+        setNumber(layerScaleNumber('foreground'), 80);
         app.document.querySelector('[data-mode="default"]').click();
-        if (layerScaleInput('foreground').value !== '40') {
+        if (layerScaleNumber('foreground').value !== '40') {
           throw new Error('Default layer scale was changed by Dark mode');
         }
         app.document.querySelector('[data-mode="dark"]').click();
-        if (layerScaleInput('foreground').value !== '80') {
+        if (layerScaleNumber('foreground').value !== '80') {
           throw new Error('Dark layer scale was not preserved');
         }
 
@@ -111,6 +172,13 @@
         const previewBytes = new app.Uint8Array(await previewBlob.arrayBuffer());
         if (iconCore.pngUsesTransparency(previewBytes)) {
           throw new Error('PNG contains transparency');
+        }
+
+        const maskedPreview = app.renderMaskedPreview();
+        const maskedBlob = await app.canvasToBlob(maskedPreview, { allowTransparency: true });
+        const maskedBytes = new app.Uint8Array(await maskedBlob.arrayBuffer());
+        if (!iconCore.pngUsesTransparency(maskedBytes)) {
+          throw new Error('masked preview PNG does not contain transparent corners');
         }
 
         let download = null;
@@ -126,6 +194,7 @@
           'Layers/Default/03-foreground.svg',
           'Layers/Dark/01-background.svg',
           'Previews/iOS-macOS/AppIcon-Dark-1024x1024.png',
+          'MaskedPreviews/watchOS/AppIcon-Dark-Masked-1088x1088.png',
           'Xcode/iOS/AppIcon.appiconset/Contents.json',
           'composition.json'
         ];
@@ -137,7 +206,7 @@
 
         window.testZipBlob = download.blob;
         document.body.dataset.result = 'PASS';
-        document.body.textContent = 'self-contained layered icon flow passed';
+        document.body.textContent = 'platform-specific layer scaling and export flow passed';
       } catch (error) {
         document.body.dataset.result = 'FAIL';
         document.body.textContent = error.message;
