@@ -11,6 +11,7 @@ vm.runInNewContext(coreScript[1], sandbox);
 
 const {
   assertPlatformRatios,
+  centeredLayerRect,
   coverageMargins,
   coverScaleForRotation,
   extensionForImage,
@@ -56,6 +57,17 @@ for (const [imageWidth, imageHeight, canvasWidth, canvasHeight] of coverageCases
 
 assert.ok(Math.abs(coverScaleForRotation(1024, 1024, 1024, 1024, 45) - Math.SQRT2) < 1e-12);
 assert.ok(Math.abs(sourceCropPercent(1024, 1024, 800, 480) - 0.4) < 1e-12);
+const halfLayer = centeredLayerRect(1024, 1024, 50);
+assert.equal(halfLayer.x, 256);
+assert.equal(halfLayer.y, 256);
+assert.equal(halfLayer.width, 512);
+assert.equal(halfLayer.height, 512);
+const enlargedLayer = centeredLayerRect(800, 480, 150);
+assert.equal(enlargedLayer.x, -200);
+assert.equal(enlargedLayer.y, -120);
+assert.equal(enlargedLayer.width, 1200);
+assert.equal(enlargedLayer.height, 720);
+assert.throws(() => centeredLayerRect(1024, 1024, 0));
 assert.equal(sanitizeBaseName('../../My\\Icon.png'), 'My-Icon');
 assert.equal(sanitizeBaseName('...'), 'app-icon');
 

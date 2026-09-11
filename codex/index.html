@@ -302,6 +302,78 @@
       margin-top: 15px;
     }
 
+    .layer-scale-panel {
+      margin-top: 15px;
+      padding: 11px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fbfcfe;
+    }
+
+    .layer-scale-head,
+    .layer-scale-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .layer-scale-head {
+      justify-content: space-between;
+    }
+
+    .layer-scale-head strong {
+      font-size: 13px;
+    }
+
+    .layer-scale-reset {
+      min-height: 28px;
+      padding: 4px 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel);
+      color: #344054;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .layer-scale-note {
+      margin: 6px 0 10px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .layer-scale-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .layer-scale-row span {
+      flex: 0 0 42px;
+      color: #344054;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .layer-scale-row input {
+      min-width: 0;
+    }
+
+    .layer-scale-row output {
+      flex: 0 0 40px;
+      color: var(--muted);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+
+    .layer-scale-row input:disabled,
+    .layer-scale-reset:disabled {
+      cursor: not-allowed;
+      opacity: 0.42;
+    }
+
     .control-row,
     .switch-row,
     .color-row {
@@ -729,9 +801,34 @@
             </div>
           </section>
 
+          <section class="layer-scale-panel" aria-labelledby="layerScaleTitle">
+            <div class="layer-scale-head">
+              <strong id="layerScaleTitle"><span id="layerScaleMode">Default</span> 分层缩放</strong>
+              <button class="layer-scale-reset" id="resetLayerScales" type="button">全部重置</button>
+            </div>
+            <p class="layer-scale-note">分别缩放当前模式的图层；切换平台时保持不变。</p>
+            <div class="layer-scale-list">
+              <label class="layer-scale-row">
+                <span>背景层</span>
+                <input class="layer-scale-input" type="range" min="10" max="320" value="100" data-layer="background">
+                <output class="layer-scale-value" data-layer="background">100%</output>
+              </label>
+              <label class="layer-scale-row">
+                <span>中景层</span>
+                <input class="layer-scale-input" type="range" min="10" max="320" value="100" data-layer="middle" disabled>
+                <output class="layer-scale-value" data-layer="middle">100%</output>
+              </label>
+              <label class="layer-scale-row">
+                <span>前景层</span>
+                <input class="layer-scale-input" type="range" min="10" max="320" value="100" data-layer="foreground">
+                <output class="layer-scale-value" data-layer="foreground">100%</output>
+              </label>
+            </div>
+          </section>
+
           <div class="control">
             <div class="control-row">
-              <label for="scale">整体缩放</label>
+              <label for="scale">整体缩放（当前平台）</label>
               <output id="scaleValue">100%</output>
             </div>
             <input id="scale" type="range" min="10" max="320" value="100">
@@ -859,6 +956,22 @@
         return Math.max(0, 1 - visibleWidth * visibleHeight / (imageWidth * imageHeight));
       }
 
+      function centeredLayerRect(artboardWidth, artboardHeight, scalePercent) {
+        if ([artboardWidth, artboardHeight, scalePercent].some((value) => !Number.isFinite(value) || value <= 0)) {
+          throw new TypeError('Artboard dimensions and layer scale must be positive finite numbers.');
+        }
+
+        const scale = scalePercent / 100;
+        const width = artboardWidth * scale;
+        const height = artboardHeight * scale;
+        return {
+          x: (artboardWidth - width) / 2,
+          y: (artboardHeight - height) / 2,
+          width,
+          height
+        };
+      }
+
       function sanitizeBaseName(fileName) {
         const withoutExtension = String(fileName || '').replace(/\.[^.]+$/, '');
         const normalized = withoutExtension
@@ -962,6 +1075,7 @@
         LAYER_IDS,
         MODE_IDS,
         assertPlatformRatios,
+        centeredLayerRect,
         coverageMargins,
         coverScaleForRotation,
         extensionForImage,
@@ -985,6 +1099,7 @@
       LAYER_IDS,
       MODE_IDS,
       assertPlatformRatios,
+      centeredLayerRect,
       coverageMargins,
       coverScaleForRotation,
       extensionForImage,
@@ -1018,6 +1133,10 @@
     const modePanels = Array.from(document.querySelectorAll('.mode-panel'));
     const fileInputs = Array.from(document.querySelectorAll('.file-input'));
     const clearButtons = Array.from(document.querySelectorAll('.clear-layer'));
+    const layerScaleInputs = Array.from(document.querySelectorAll('.layer-scale-input'));
+    const layerScaleValues = Array.from(document.querySelectorAll('.layer-scale-value'));
+    const layerScaleMode = document.getElementById('layerScaleMode');
+    const resetLayerScalesButton = document.getElementById('resetLayerScales');
     const scaleInput = document.getElementById('scale');
     const rotationInput = document.getElementById('rotation');
     const backgroundColorInput = document.getElementById('backgroundColor');
@@ -1054,6 +1173,12 @@
       foreground: null
     });
 
+    const makeLayerScales = () => ({
+      background: 100,
+      middle: 100,
+      foreground: 100
+    });
+
     const state = {
       modeId: 'default',
       platformId: 'ios',
@@ -1065,6 +1190,10 @@
       transforms: {
         default: makePlatformTransforms(),
         dark: makePlatformTransforms()
+      },
+      layerScales: {
+        default: makeLayerScales(),
+        dark: makeLayerScales()
       },
       backgroundColors: {
         default: '#f5f5f7',
@@ -1125,6 +1254,10 @@
 
     function currentTransform() {
       return state.transforms[state.modeId][state.platformId];
+    }
+
+    function currentLayerScales() {
+      return state.layerScales[state.modeId];
     }
 
     function effectiveLayer(mode, layer) {
@@ -1195,7 +1328,8 @@
       LAYER_IDS.forEach((layer) => {
         const source = effectiveLayer(mode, layer);
         if (source) {
-          outputContext.drawImage(source.image, 0, 0, output.width, output.height);
+          const rect = centeredLayerRect(output.width, output.height, state.layerScales[mode][layer]);
+          outputContext.drawImage(source.image, rect.x, rect.y, rect.width, rect.height);
         }
       });
 
@@ -1355,6 +1489,24 @@
       });
     }
 
+    function updateLayerScaleControls() {
+      const scales = currentLayerScales();
+      layerScaleMode.textContent = currentModeLabel();
+
+      layerScaleInputs.forEach((input) => {
+        const layer = input.dataset.layer;
+        input.value = scales[layer];
+        input.disabled = !effectiveLayer(state.modeId, layer);
+        input.setAttribute('aria-label', `${currentModeLabel()} ${layer === 'background' ? '背景层' : layer === 'middle' ? '中景层' : '前景层'}缩放`);
+      });
+
+      layerScaleValues.forEach((output) => {
+        output.textContent = `${scales[output.dataset.layer]}%`;
+      });
+
+      resetLayerScalesButton.disabled = !hasAnyEffectiveLayer(state.modeId);
+    }
+
     function updateSizeList() {
       sizeList.innerHTML = currentPlatform().sizeLabels.map((label) => `
         <li class="size-pill"><i class="size-dot"></i><span>${label}</span></li>
@@ -1478,6 +1630,7 @@
 
       updateTabs();
       updateLayerCards();
+      updateLayerScaleControls();
       updateSizeList();
 
       const preview = renderIcon({ mode: state.modeId, platform, withGuides: true });
@@ -1519,6 +1672,7 @@
         if (mode === 'default' && layer === 'background') {
           state.fileName = sanitizeBaseName(file.name);
           MODE_IDS.forEach((modeId) => {
+            state.layerScales[modeId] = makeLayerScales();
             Object.keys(platforms).forEach((platformId) => {
               state.transforms[modeId][platformId] = makeTransform();
             });
@@ -1698,7 +1852,8 @@
             exportedAs: `${String(LAYER_IDS.indexOf(layer) + 1).padStart(2, '0')}-${layer}.${effective.extension}`,
             inheritedFrom: mode === 'dark' && !direct ? 'default' : null,
             width: effective.image.naturalWidth,
-            height: effective.image.naturalHeight
+            height: effective.image.naturalHeight,
+            scalePercent: state.layerScales[mode][layer]
           } : null;
         });
       });
@@ -1779,7 +1934,7 @@
           'Layers：Default 与 Dark 的独立 SVG/PNG 图层；Dark 未覆盖的图层已复制 Default 素材。',
           'Previews：两个模式在 iOS/macOS、tvOS、watchOS 画布上的不透明 sRGB 合成 PNG。',
           'Xcode/iOS：传统 Asset Catalog 使用的 Default/Dark AppIcon.appiconset。',
-          'composition.json：图层来源、继承关系、画布和预览变换。',
+          'composition.json：图层来源、继承关系、分层缩放、画布和预览变换。',
           '',
           '如需最新 Liquid Glass .icon 文件，请将 Layers 中的独立素材导入 Apple Icon Composer 后保存。'
         ].join('\n');
@@ -1854,6 +2009,20 @@
       button.addEventListener('click', () => {
         clearLayer(button.dataset.clearMode, button.dataset.clearLayer);
       });
+    });
+
+    layerScaleInputs.forEach((input) => {
+      input.addEventListener('input', () => {
+        currentLayerScales()[input.dataset.layer] = Number(input.value);
+        invalidateComposites(state.modeId);
+        redraw();
+      });
+    });
+
+    resetLayerScalesButton.addEventListener('click', () => {
+      state.layerScales[state.modeId] = makeLayerScales();
+      invalidateComposites(state.modeId);
+      redraw();
     });
 
     scaleInput.addEventListener('input', () => {

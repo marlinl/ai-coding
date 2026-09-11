@@ -36,15 +36,74 @@
         }
 
         const backgroundSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><rect width="1024" height="1024" fill="#0a84ff"/></svg>';
+        const middleSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><rect width="1024" height="1024" fill="#ff3b30"/></svg>';
         const foregroundSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><circle cx="512" cy="512" r="260" fill="white"/></svg>';
         app.loadLayerFile('default', 'background', new app.File([backgroundSvg], 'background.svg', { type: 'image/svg+xml' }));
         app.loadLayerFile('default', 'foreground', new app.File([foregroundSvg], 'foreground.svg', { type: 'image/svg+xml' }));
         await waitFor(() => !app.document.getElementById('downloadZip').disabled, 'required layers did not enable export');
 
+        const layerScaleInput = (layer) => app.document.querySelector(`.layer-scale-input[data-layer="${layer}"]`);
+        const setRange = (input, value) => {
+          input.value = value;
+          input.dispatchEvent(new app.Event('input', { bubbles: true }));
+        };
+        if (!layerScaleInput('middle').disabled) {
+          throw new Error('missing optional middle layer scale should be disabled');
+        }
+
+        app.loadLayerFile('default', 'middle', new app.File([middleSvg], 'middle.svg', { type: 'image/svg+xml' }));
+        await waitFor(() => !layerScaleInput('middle').disabled, 'middle layer scale did not enable');
+        setRange(layerScaleInput('background'), 60);
+        setRange(layerScaleInput('middle'), 50);
+        setRange(layerScaleInput('foreground'), 40);
+
+        const separatedPreview = app.renderIcon();
+        const separatedContext = separatedPreview.getContext('2d');
+        const pixelAt = (x, y) => Array.from(separatedContext.getImageData(x, y, 1, 1).data);
+        if (pixelAt(10, 10).slice(0, 3).join(',') !== '245,245,247') {
+          throw new Error('background layer did not scale independently');
+        }
+        if (pixelAt(700, 700).slice(0, 3).join(',') !== '255,59,48') {
+          throw new Error('middle layer did not scale independently');
+        }
+        if (pixelAt(512, 512).slice(0, 3).join(',') !== '255,255,255') {
+          throw new Error('foreground layer did not scale independently');
+        }
+        if (pixelAt(700, 512).slice(0, 3).join(',') !== '255,59,48') {
+          throw new Error('foreground layer scale affected another layer');
+        }
+
+        const overallScale = app.document.getElementById('scale');
+        setRange(overallScale, 120);
+        const overallPreview = app.renderIcon();
+        const overallPixel = Array.from(overallPreview.getContext('2d').getImageData(800, 512, 1, 1).data);
+        if (overallPixel.slice(0, 3).join(',') !== '255,59,48') {
+          throw new Error('overall scale no longer affects the combined icon');
+        }
+
+        const defaultManifest = app.compositionManifest();
+        if (defaultManifest.modes.default.layers.background.scalePercent !== 60
+          || defaultManifest.modes.default.layers.middle.scalePercent !== 50
+          || defaultManifest.modes.default.layers.foreground.scalePercent !== 40) {
+          throw new Error('layer scales are missing from composition manifest');
+        }
+
         app.document.querySelector('[data-mode="dark"]').click();
         const inheritedCard = app.document.querySelector('[data-card-mode="dark"][data-card-layer="background"]');
         if (!inheritedCard.classList.contains('inherited') || !inheritedCard.textContent.includes('继承 Default')) {
           throw new Error('Dark mode did not inherit Default layers');
+        }
+        if (layerScaleInput('foreground').value !== '100' || overallScale.value !== '100') {
+          throw new Error('Dark mode scale state leaked from Default mode');
+        }
+        setRange(layerScaleInput('foreground'), 80);
+        app.document.querySelector('[data-mode="default"]').click();
+        if (layerScaleInput('foreground').value !== '40') {
+          throw new Error('Default layer scale was changed by Dark mode');
+        }
+        app.document.querySelector('[data-mode="dark"]').click();
+        if (layerScaleInput('foreground').value !== '80') {
+          throw new Error('Dark layer scale was not preserved');
         }
 
         const preview = app.renderIcon();
@@ -63,6 +122,7 @@
         const zipText = new TextDecoder().decode(new Uint8Array(await download.blob.arrayBuffer()));
         const requiredPaths = [
           'Layers/Default/01-background.svg',
+          'Layers/Default/02-middle.svg',
           'Layers/Default/03-foreground.svg',
           'Layers/Dark/01-background.svg',
           'Previews/iOS-macOS/AppIcon-Dark-1024x1024.png',
